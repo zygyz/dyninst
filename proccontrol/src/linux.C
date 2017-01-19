@@ -401,7 +401,7 @@ bool DecoderLinux::decode(ArchEvent *ae, std::vector<Event::ptr> &events)
                break;
             }
          case SIGTRAP: {
-#if 0
+#if 1 
             {
                //Debugging code
                Dyninst::MachRegisterVal addr;
@@ -511,6 +511,7 @@ bool DecoderLinux::decode(ArchEvent *ae, std::vector<Event::ptr> &events)
                }
                break;
             }
+
             if (proc->getState() == int_process::neonatal_intermediate) {
                pthrd_printf("Decoded event to bootstrap on %d/%d\n",
                             proc->getPid(), thread->getLWP());
@@ -521,7 +522,7 @@ bool DecoderLinux::decode(ArchEvent *ae, std::vector<Event::ptr> &events)
             Dyninst::Address adjusted_addr;
 
             result = thread->plat_getRegister(MachRegister::getPC(proc->getTargetArch()), addr);
-#if 0
+#if 1 
             //ARM-Debug
             pthrd_printf("ARM-debug: PC = 0x%lx\n", addr);
             char buffer_inst[4];
