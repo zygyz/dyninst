@@ -54,7 +54,8 @@ bool CFWidget::generateIndirect(CodeBuffer &buffer,
                               Register,
                               const RelocBlock *trace,
                               Instruction::Ptr insn) {
-	assert(0);
+   //if (reg != Null_Register) {
+	
    return true;
 }
 
@@ -64,10 +65,24 @@ bool CFWidget::generateIndirectCall(CodeBuffer &buffer,
                                   Register reg,
                                   Instruction::Ptr insn,
                                   const RelocBlock *trace,
-				  Address origAddr)
+				  Address /*origAddr*/)
 {
-	assert(0);
-   return true;
+   assert(reg == Null_Register);
+   // Check this to see if it's RIP-relative
+   NS_aarch64::instruction a64_insn(insn->ptr());
+   //if (a64_insn.type() & REL_D_DATA) {
+   if (reg != Null_Register) {
+   	// This was an IP-relative call that we moved to a new location.
+        assert(origTarget_);
+        CFPatch *newPatch = new CFPatch(CFPatch::Data, insn,
+				new Target<Address>(origTarget_),
+                                trace->func(),
+				addr_);
+	buffer.addPatch(newPatch, tracker(trace));
+    } else {
+	buffer.addPIC(insn->ptr(), insn->size(), tracker(trace));
+    }
+    return true;
 }
 
 bool CFPatch::apply(codeGen &gen, CodeBuffer *buf) {
@@ -103,13 +118,10 @@ bool CFWidget::generateAddressTranslator(CodeBuffer &buffer,
                                        Register &reg,
                                        const RelocBlock *trace)
 {
-	assert(0);
 #if !defined(cap_mem_emulation)
    return true;
 #else
-   assert(0);
    return false;
 #endif
 
 }
-

@@ -190,54 +190,27 @@ bool AddressSpace::getDyninstRTLibName() {
 // floor of inferior malloc address range within a single branch of x
 // for 32-bit ELF PowerPC mutatees
 Address region_lo(const Address x) {
-   const Address floor = getpagesize();
+   return 0;
 
-   assert(x >= floor);
-
-   if ((x > floor) && (x - floor > getMaxBranch()))
-      return x - getMaxBranch();
-
-   return floor;
 }
 
 
 // floor of inferior malloc address range within a single branch of x
 // for 64-bit ELF PowerPC mutatees
 Address region_lo_64(const Address x) {
-   const Address floor = getpagesize();
-
-   assert(x >= floor);
-
-   if ((x > floor) && (x - floor > getMaxBranch()))
-      return x - getMaxBranch();
-
-   return floor;
+   return (x & 0xffffffff80000000);
 }
 
 
 // ceiling of inferior malloc address range within a single branch of x
 // for 32-bit ELF PowerPC mutatees
 Address region_hi(const Address x) {
-   const Address ceiling = ~(Address)0 & 0xffffffff;
-
-   assert(x < ceiling);
-
-   if ((x < ceiling) && (ceiling - x > getMaxBranch()))
-      return x + getMaxBranch();
-
-   return ceiling;
+   return 0;
 }
 
 
 // ceiling of inferior malloc address range within a single branch of x
 // for 64-bit ELF PowerPC mutatees
 Address region_hi_64(const Address x) {
-   const Address ceiling = ~(Address)0;
-
-   assert(x < ceiling);
-
-   if ((x < ceiling) && (ceiling - x > getMaxBranch()))
-      return x + getMaxBranch();
-
-   return ceiling;
+   return (x | 0x000000007fffffff);
 }

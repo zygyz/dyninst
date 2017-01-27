@@ -81,7 +81,6 @@ std::unordered_map<std::string, unsigned> funcFrequencyTable;
 
 void initDefaultPointFrequencyTable()
 {
-	assert(0); //Not implemented
 }
 
 Register floatingLiveRegList[] = {13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
@@ -90,19 +89,19 @@ unsigned int floatingLiveRegListSize = 14;
 
 
 void registerSpace::initialize32() {
-	assert(0); //Not implemented
 }
 
 void registerSpace::initialize64() {
-	assert(0); //Not implemented
+    pdvector<registerSlot *> registers;
+    registerSpace::createRegisterSpace64(registers);
+
 }
 
 void registerSpace::initialize() {
-	assert(0); //Not implemented
+	initialize64();
 }
 
 unsigned registerSpace::SPR(Register x) {
-	assert(0); //Not implemented
 
 }
 
@@ -111,7 +110,6 @@ void saveSPR(codeGen &gen,     //Instruction storage pointer
              int         sprnum,     //SPR number
              int         stkOffset) //Offset from stack pointer
 {
-	assert(0); //Not implemented
 
 }
 
@@ -128,7 +126,6 @@ void restoreSPR(codeGen &gen,       //Instruction storage pointer
                 int           sprnum,     //SPR number
                 int           stkOffset)  //Offset from stack pointer
 {
-	assert(0); //Not implemented
 
 }
 
@@ -142,7 +139,6 @@ void saveLR(codeGen &gen,       //Instruction storage pointer
             Register      scratchReg, //Scratch register
             int           stkOffset)  //Offset from stack pointer
 {
-	assert(0); //Not implemented
 
 }
 
@@ -157,7 +153,6 @@ void restoreLR(codeGen &gen,       //Instruction storage pointer
                Register      scratchReg, //Scratch register
                int           stkOffset)  //Offset from stack pointer
 {
-	assert(0); //Not implemented
 
 }
 
@@ -175,7 +170,6 @@ void setBRL(codeGen &gen,        //Instruction storage pointer
             long          val,         //Value to set link register to
             instruction   ti)          //Tail instruction
 {
-	assert(0); //Not implemented
 
 }
 
@@ -188,7 +182,6 @@ void resetBRL(AddressSpace  *p,   //Process to write instructions into
 	      Address   loc, //Address in process to write into
 	      unsigned  val) //Value to set link register
 {
-	assert(0); //Not implemented
 
 }
 
@@ -203,7 +196,6 @@ void saveCR(codeGen &gen,       //Instruction storage pointer
             Register      scratchReg, //Scratch register
             int           stkOffset)  //Offset from stack pointer
 {
-	assert(0); //Not implemented
 
 }
 
@@ -218,7 +210,6 @@ void restoreCR(codeGen &gen,       //Instruction storage pointer
                Register      scratchReg, //Scratch register
                int           stkOffset)  //Offset from stack pointer
 {
-	assert(0); //Not implemented
 
 }
 
@@ -234,7 +225,6 @@ void saveFPSCR(codeGen &gen,       //Instruction storage pointer
                Register      scratchReg, //Scratch fp register
                int           stkOffset)  //Offset from stack pointer
 {
-	assert(0); //Not implemented
 
 }
 
@@ -250,7 +240,6 @@ void restoreFPSCR(codeGen &gen,       //Instruction storage pointer
                   Register      scratchReg, //Scratch fp register
                   int           stkOffset)  //Offset from stack pointer
 {
-	assert(0); //Not implemented
 }
 
      //////////////////////////////////////////////////////////////////////////
@@ -259,7 +248,6 @@ void restoreFPSCR(codeGen &gen,       //Instruction storage pointer
 void resetBR(AddressSpace  *p,    //Process to write instruction into
 	     Address   loc)  //Address in process to write into
 {
-	assert(0); //Not implemented
 }
 
 void saveRegisterAtOffset(codeGen &gen,
@@ -273,20 +261,17 @@ void saveRegister(codeGen &gen,
                   Register dest,
                   int save_off)
 {
-	assert(0); //Not implemented
 }
 
 void saveRegister(codeGen &gen,
                   Register reg,
                   int save_off)
 {
-	assert(0); //Not implemented
 }
 
 void restoreRegisterAtOffset(codeGen &gen,
                              Register dest,
                              int saved_off) {
-	assert(0); //Not implemented
 }
 
 // Dest != reg : optimizate away a load/move pair
@@ -295,7 +280,6 @@ void restoreRegister(codeGen &gen,
                      Register dest,
                      int saved_off)
 {
-	assert(0); //Not implemented
 
 }
 
@@ -303,14 +287,12 @@ void restoreRegister(codeGen &gen,
                      Register reg,
                      int save_off)
 {
-	assert(0); //Not implemented
 }
 
 void saveFPRegister(codeGen &gen,
                     Register reg,
                     int save_off)
 {
-	assert(0); //Not implemented
 }
 
 void restoreFPRegister(codeGen &gen,
@@ -318,14 +300,12 @@ void restoreFPRegister(codeGen &gen,
                        Register dest,
                        int save_off)
 {
-	assert(0); //Not implemented
 }
 
 void restoreFPRegister(codeGen &gen,
                        Register reg,
                        int save_off)
 {
-	assert(0); //Not implemented
 }
 
 /*
@@ -333,12 +313,10 @@ void restoreFPRegister(codeGen &gen,
  */
 void pushStack(codeGen &gen)
 {
-	assert(0); //Not implemented
 }
 
 void popStack(codeGen &gen)
 {
-	assert(0); //Not implemented
 }
 
 /*
@@ -352,7 +330,6 @@ unsigned saveGPRegisters(codeGen &gen,
                          registerSpace *theRegSpace,
                          int save_off, int numReqGPRs)
 {
-	assert(0); //Not implemented
 }
 
 /*
@@ -367,7 +344,6 @@ unsigned restoreGPRegisters(codeGen &gen,
                             registerSpace *theRegSpace,
                             int save_off)
 {
-	assert(0); //Not implemented
     return 0;
 }
 
@@ -381,7 +357,6 @@ unsigned saveFPRegisters(codeGen &gen,
                          registerSpace * theRegSpace,
                          int save_off)
 {
-	assert(0); //Not implemented
   unsigned numRegs = 0;
 
   return numRegs;
@@ -397,7 +372,6 @@ unsigned restoreFPRegisters(codeGen &gen,
                             registerSpace *theRegSpace,
                             int save_off)
 {
-	assert(0); //Not implemented
   unsigned numRegs = 0;
 
   return numRegs;
@@ -412,7 +386,6 @@ unsigned saveSPRegisters(codeGen &gen,
                          int save_off,
 			 int force_save)
 {
-	assert(0); //Not implemented
     unsigned num_saved = 0;
     return num_saved;
 }
@@ -427,7 +400,6 @@ unsigned restoreSPRegisters(codeGen &gen,
                             int save_off,
 			    int force_save)
 {
-	assert(0); //Not implemented
     int cr_off, ctr_off, xer_off, spr0_off, fpscr_off;
     unsigned num_restored = 0;
     return num_restored;
@@ -437,14 +409,12 @@ unsigned restoreSPRegisters(codeGen &gen,
 bool baseTramp::generateSaves(codeGen &gen,
                               registerSpace *)
 {
-	assert(0); //Not implemented
     return true;
 }
 
 bool baseTramp::generateRestores(codeGen &gen,
                                  registerSpace *)
 {
-	assert(0); //Not implemented
     return true;
 }
 
@@ -452,7 +422,6 @@ bool baseTramp::generateRestores(codeGen &gen,
 void emitImm(opCode op, Register src1, RegValue src2imm, Register dest,
              codeGen &gen, bool noCost, registerSpace * /* rs */)
 {
-	assert(0); //Not implemented
 }
 
 void cleanUpAndExit(int status);
@@ -468,7 +437,6 @@ bool EmitterAARCH64::clobberAllFuncCall( registerSpace *rs,
                                        func_instance * callee)
 
 {
-	assert(0); //Not implemented
   return false;
 }
 
@@ -495,7 +463,6 @@ bool EmitterAARCH64::clobberAllFuncCall( registerSpace *rs,
 //
 
 Register emitFuncCall(opCode, codeGen &, pdvector<AstNodePtr> &, bool, Address) {
-	assert(0);
         return 0;
 }
 
@@ -503,7 +470,6 @@ Register emitFuncCall(opCode op,
                       codeGen &gen,
                       pdvector<AstNodePtr> &operands, bool noCost,
                       func_instance *callee) {
-	assert(0); //Not implemented
     return 0;
 }
 
@@ -511,7 +477,6 @@ Register EmitterAARCH64::emitCallReplacement(opCode ocode,
                                            codeGen &gen,
                                            bool /* noCost */,
                                            func_instance *callee) {
-	assert(0); //Not implemented
     return 0;
 }
 
@@ -525,7 +490,6 @@ Register EmitterAARCH64::emitCall(opCode ocode,
                                 const pdvector<AstNodePtr> &operands,
                                 bool noCost,
                                 func_instance *callee) {
-	assert(0); //Not implemented
     return NULL;
 }
 
@@ -533,7 +497,6 @@ Register EmitterAARCH64::emitCall(opCode ocode,
 codeBufIndex_t emitA(opCode op, Register src1, Register /*src2*/, long dest,
 	      codeGen &gen, RegControl, bool /*noCost*/)
 {
-	assert(0); //Not implemented
     return NULL;
 }
 
@@ -542,13 +505,11 @@ Register emitR(opCode op, Register src1, Register src2, Register dest,
                const instPoint * /*location*/, bool /*for_MT*/)
 {
 
-    assert(0);
     return REG_NULL;
 }
 
 void emitJmpMC(int /*condition*/, int /*offset*/, codeGen &)
 {
-	assert(0); //Not implemented
   // Not needed for memory instrumentation, otherwise TBD
 }
 
@@ -557,7 +518,6 @@ void emitJmpMC(int /*condition*/, int /*offset*/, codeGen &)
 // VG(03/15/02): Sync'd with the new AIX tramp
 static inline bool needsRestore(Register x)
 {
-	assert(0); //Not implemented
 	return false;
 }
 
@@ -565,20 +525,17 @@ static inline bool needsRestore(Register x)
 static inline void restoreGPRtoGPR(codeGen &gen,
                                    Register reg, Register dest)
 {
-	assert(0); //Not implemented
 }
 
 // VG(03/15/02): Restore mutatee value of XER to dest GPR
 static inline void restoreXERtoGPR(codeGen &gen, Register dest)
 {
-	assert(0); //Not implemented
 }
 
 // VG(03/15/02): Move bits 25:31 of GPR reg to GPR dest
 static inline void moveGPR2531toGPR(codeGen &gen,
                                     Register reg, Register dest)
 {
-	assert(0); //Not implemented
 }
 
 // VG(11/16/01): Emit code to add the original value of a register to
@@ -587,7 +544,6 @@ static inline void moveGPR2531toGPR(codeGen &gen,
 static inline void emitAddOriginal(Register src, Register acc,
                                    codeGen &gen, bool noCost)
 {
-	assert(0); //Not implemented
 }
 
 // VG(11/07/01): Load in destination the effective address given
@@ -596,13 +552,11 @@ void emitASload(const BPatch_addrSpec_NP *as, Register dest, int stackShift,
 		codeGen &gen,
 		bool noCost)
 {
-	assert(0); //Not implemented
 }
 
 void emitCSload(const BPatch_addrSpec_NP *as, Register dest, codeGen &gen,
 		bool noCost)
 {
-	assert(0); //Not implemented
 }
 
 void emitVload(opCode op, Address src1, Register src2, Register dest,
@@ -610,7 +564,6 @@ void emitVload(opCode op, Address src1, Register src2, Register dest,
                registerSpace * /*rs*/, int size,
                const instPoint * /* location */, AddressSpace *proc)
 {
-	assert(0); //Not implemented
 }
 
 void emitVstore(opCode op, Register src1, Register /*src2*/, Address dest,
@@ -618,7 +571,6 @@ void emitVstore(opCode op, Register src1, Register /*src2*/, Address dest,
                 registerSpace * /* rs */, int size,
                 const instPoint * /* location */, AddressSpace *proc)
 {
-	assert(0); //Not implemented
   return;
 }
 
@@ -779,6 +731,16 @@ bool writeFunctionPtr(AddressSpace *p, Address addr, func_instance *f)
 
 Emitter *AddressSpace::getEmitter()
 {
+    static EmitterAARCH64Dyn emitter64Dyn;
+    static EmitterAARCH64Stat emitter64Stat;
+
+    if (getAddressWidth() == 8) {
+        if (proc()) {
+            return &emitter64Dyn;
+        }
+        else return &emitter64Stat;
+    }
+
     assert(0);
     return NULL;
 }
