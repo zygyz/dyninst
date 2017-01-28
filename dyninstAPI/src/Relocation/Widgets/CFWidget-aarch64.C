@@ -55,7 +55,7 @@ bool CFWidget::generateIndirect(CodeBuffer &buffer,
                               const RelocBlock *trace,
                               Instruction::Ptr insn) {
    //if (reg != Null_Register) {
-	
+   assert(0);	
    return true;
 }
 
