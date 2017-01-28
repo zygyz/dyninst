@@ -501,10 +501,8 @@ void ABI::initialize64(){
 //#warning "This is not verified!"
 #if defined(arch_aarch64)
 void ABI::initialize32(){
-	assert(0);
 }
 
 void ABI::initialize64(){
-	assert(0);
 }
 #endif
