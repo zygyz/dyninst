@@ -92,7 +92,17 @@ void registerSpace::initialize32() {
 }
 
 void registerSpace::initialize64() {
+    static bool done = false;
+    if (done) return;
+    done = true;
+
     pdvector<registerSlot *> registers;
+    for (unsigned i = r0; i <= r30; ++i) {
+       char name[31];
+       sprintf(name, "r%2d", i-r0);
+       registers.push_back(new registerSlot(i, name, false, registerSlot::liveAlways, registerSlot::GPR));
+    }
+
     registerSpace::createRegisterSpace64(registers);
 
 }

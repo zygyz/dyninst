@@ -2094,8 +2094,11 @@ bool AstCallNode::initRegisters(codeGen &gen) {
 #endif
 
 #if defined(arch_aarch64)
-	//#warning "This function is not implemented yet!"
-	assert(false);
+    func_instance *callee = func_;
+    if (!callee) {
+	callee = gen.addrSpace()->findOnlyOneFunction(func_name_.c_str());
+	assert(callee);
+    }
 #endif
     return ret;
 
