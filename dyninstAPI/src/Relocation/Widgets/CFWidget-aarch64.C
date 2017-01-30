@@ -54,9 +54,13 @@ bool CFWidget::generateIndirect(CodeBuffer &buffer,
                               Register,
                               const RelocBlock *trace,
                               Instruction::Ptr insn) {
-   //if (reg != Null_Register) {
-   assert(0);	
-   return true;
+  NS_aarch64::instruction ugly_insn(insn->ptr());
+  codeGen gen(4);
+  insnCodeGen::generate(gen, ugly_insn);
+
+  // TODO don't ignore the register parameter
+  buffer.addPIC(gen, tracker(trace));
+  return true;
 }
 
 
@@ -67,28 +71,19 @@ bool CFWidget::generateIndirectCall(CodeBuffer &buffer,
                                   const RelocBlock *trace,
 				  Address /*origAddr*/)
 {
-   assert(reg == Null_Register);
-   // Check this to see if it's RIP-relative
-   NS_aarch64::instruction a64_insn(insn->ptr());
-   //if (a64_insn.type() & REL_D_DATA) {
-   if (reg != Null_Register) {
-   	// This was an IP-relative call that we moved to a new location.
-        assert(origTarget_);
-        CFPatch *newPatch = new CFPatch(CFPatch::Data, insn,
-				new Target<Address>(origTarget_),
-                                trace->func(),
-				addr_);
-	buffer.addPatch(newPatch, tracker(trace));
-    } else {
-	buffer.addPIC(insn->ptr(), insn->size(), tracker(trace));
-    }
-    return true;
+   NS_aarch64::instruction ugly_insn(insn->ptr());
+   codeGen gen(4);
+   insnCodeGen::generate(gen, ugly_insn);
+
+   buffer.addPIC(gen, tracker(trace));
+   return true;
 }
 
 bool CFPatch::apply(codeGen &gen, CodeBuffer *buf) {
 	assert(0);
 
    return true;
+
 }
 
 bool CFPatch::isPLT(codeGen &gen) {
@@ -123,5 +118,4 @@ bool CFWidget::generateAddressTranslator(CodeBuffer &buffer,
 #else
    return false;
 #endif
-
 }

@@ -762,6 +762,7 @@ bool registerSpace::writeProgramRegister(codeGen &gen,
                                          Register source,
                                          unsigned) {
 #if defined(arch_aarch64)
+	assert(0);
 		//not implemented yet
 		return false;
 #else

@@ -82,11 +82,10 @@ ABI* ABI::getABI(int addr_width){
 
 #endif
 
-//#warning "This is not verified yet!"
 #if defined(arch_aarch64)
 	globalABI64_->addr_width = 8;
 	globalABI_->index = &machRegIndex_ppc();
-	globalABI64_->index = &machRegIndex_ppc();
+	globalABI64_->index = &machRegIndex_aarch64();
 #endif
 
 	initialize32();
@@ -498,11 +497,83 @@ void ABI::initialize64(){
 }
 #endif
 
-//#warning "This is not verified!"
 #if defined(arch_aarch64)
 void ABI::initialize32(){
 }
 
 void ABI::initialize64(){
+    returnRead64_ = getBitArray(machRegIndex_aarch64().size());
+    returnRead64_[machRegIndex_aarch64()[aarch64::x2]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x3]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x4]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x5]] = true;
+
+    // Calls
+    callRead64_ = getBitArray(machRegIndex_aarch64().size());
+
+    callRead64_[machRegIndex_aarch64()[aarch64::x6]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x7]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x8]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x9]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x10]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x11]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x12]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x13]] = true;
+
+    callRead64_[machRegIndex_aarch64()[aarch64::x14]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x15]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x16]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x17]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x18]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x19]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x20]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x21]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x22]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x23]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x24]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x25]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x26]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x27]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x28]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x29]] = true;
+    callRead64_[machRegIndex_aarch64()[aarch64::x30]] = true;
+
+    callWritten64_ = getBitArray(machRegIndex_aarch64().size());
+
+    // Calls write to pretty much every register we use for code generation
+    callWritten64_[machRegIndex_aarch64()[aarch64::x0]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x1]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x2]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x3]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x4]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x5]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x6]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x7]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x8]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x9]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x10]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x11]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x12]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x13]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x14]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x15]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x16]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x17]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x18]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x19]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x20]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x21]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x22]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x23]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x24]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x25]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x26]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x27]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x28]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x29]] = true;
+    callWritten64_[machRegIndex_aarch64()[aarch64::x30]] = true;
+
+    allRegs_ = getBitArray(machRegIndex_aarch64().size()).set();
+
 }
 #endif
