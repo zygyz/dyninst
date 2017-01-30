@@ -80,15 +80,39 @@ bool CFWidget::generateIndirectCall(CodeBuffer &buffer,
 }
 
 bool CFPatch::apply(codeGen &gen, CodeBuffer *buf) {
-	assert(0);
+    if (isPLT(gen)) {
+        relocation_cerr << "\t\t\t isPLT..." << endl;
+            if (!applyPLT(gen, buf)) {
+                relocation_cerr << "PLT special case handling in PPC64" << endl;
+                return false;
+            }
+        return true;
+    }
 
-   return true;
+    int targetLabel = target->label(buf);
+    relocation_cerr << "\t\t CFPatch::apply, type " << type << ", origAddr " << hex << origAddr_ << "and label " << dec << targetLabel << endl;
+
+    return true;
 
 }
 
 bool CFPatch::isPLT(codeGen &gen) {
-	assert(0);
-      return false;
+   if (!gen.addrSpace()->edit()) return false;
+
+    // First check the target type.
+    if (target->type() != TargetInt::BlockTarget) {
+        // Either a RelocBlock (which _must_ be local)
+        // or an Address (which has to be local to be
+        // meaningful); neither reqs PLT
+        return false;
+    }
+
+    Target<block_instance *> *t = static_cast<Target<block_instance *> *>(target);
+    block_instance *tb = t->t();
+    if (tb->proc() != gen.addrSpace())
+        return true;
+    else
+        return false;
 }
 
 bool CFPatch::applyPLT(codeGen &gen, CodeBuffer *) {
