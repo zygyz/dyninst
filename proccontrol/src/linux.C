@@ -401,7 +401,7 @@ bool DecoderLinux::decode(ArchEvent *ae, std::vector<Event::ptr> &events)
                break;
             }
          case SIGTRAP: {
-#if 1 
+#if 0 
             {
                //Debugging code
                Dyninst::MachRegisterVal addr;
