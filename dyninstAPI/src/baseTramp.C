@@ -200,7 +200,6 @@ bool baseTramp::generateCode(codeGen &gen,
 
    gen.setPCRelUseCount(0);
    gen.setBT(this);
-   std::cout << "addr " << instP() << std::endl;
    if (instP()) {
       //iRPCs already have this set
       gen.setPoint(instP());
