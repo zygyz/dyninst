@@ -90,7 +90,56 @@ bool CFPatch::apply(codeGen &gen, CodeBuffer *buf) {
     }
 
     int targetLabel = target->label(buf);
-    relocation_cerr << "\t\t CFPatch::apply, type " << type << ", origAddr " << hex << origAddr_ << "and label " << dec << targetLabel << endl;
+    relocation_cerr << "\t\t CFPatch::apply, type " << type << ", origAddr " << hex << origAddr_
+                    << "and label " << dec << targetLabel << endl;
+
+    if (orig_insn) {
+        relocation_cerr << "\t\t\t Currently at " << hex << gen.currAddr() << " and targeting predicted " << buf->predictedAddr(targetLabel) << dec << endl;
+        switch(type) {
+            case CFPatch::Jump: {
+                relocation_cerr << "\t\t\t Generating CFPatch::Jump from " << hex << gen.currAddr() << " to " << buf->predictedAddr(targetLabel) << dec << endl;
+                if (!insnCodeGen::modifyJump(buf->predictedAddr(targetLabel), *ugly_insn, gen)) {
+                    relocation_cerr << "modifyJump failed, ret false" << endl;
+                    return false;
+                }
+                return true;
+            }
+            case CFPatch::JCC: {
+                relocation_cerr << "\t\t\t Generating CFPatch::JCC from " << hex << gen.currAddr() << " to " << buf->predictedAddr(targetLabel) << dec << endl;
+                if (!insnCodeGen::modifyJcc(buf->predictedAddr(targetLabel), *ugly_insn, gen)) {
+                    relocation_cerr << "modifyJcc failed, ret false" << endl;
+                    return false;
+                }
+                return true;
+            }
+            case CFPatch::Call: {
+                if (!insnCodeGen::modifyCall(buf->predictedAddr(targetLabel), *ugly_insn, gen)) {
+                    relocation_cerr << "modifyCall failed, ret false" << endl;
+                    return false;
+                }
+                return true;
+            }
+            case CFPatch::Data: {
+                if (!insnCodeGen::modifyData(buf->predictedAddr(targetLabel), *ugly_insn, gen)) {
+                    relocation_cerr << "modifyData failed, ret false" << endl;
+                    return false;
+                }
+                return true;
+            }
+        }
+    }
+    else {
+        switch(type) {
+            case CFPatch::Jump:
+                insnCodeGen::generateBranch(gen, gen.currAddr(), buf->predictedAddr(targetLabel));
+                break;
+            case CFPatch::Call:
+                insnCodeGen::generateCall(gen, gen.currAddr(), buf->predictedAddr(targetLabel));
+                break;
+            default:
+                assert(0);
+            }
+    }
 
     return true;
 
