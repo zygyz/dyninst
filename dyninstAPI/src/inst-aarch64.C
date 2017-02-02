@@ -536,6 +536,9 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
    }
 }
 
+bool EmitterAARCH64::emitBTSaves(baseTramp*, codeGen &) {
+ return true;
+}
 
 codeBufIndex_t emitA(opCode op, Register src1, Register /*src2*/, long dest,
 	      codeGen &gen, RegControl, bool /*noCost*/)
