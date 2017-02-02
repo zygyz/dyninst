@@ -53,3 +53,25 @@
 
 //const int EmitterAARCH64::mt_offset = -8;
 
+bool shouldSaveReg(registerSlot *reg, baseTramp *inst, bool saveFlags) {
+
+   if (inst->point()) {
+      regalloc_printf("\t shouldSaveReg for BT %p, from 0x%lx\n", inst, inst->point()->insnAddr() );
+   }
+   else {
+      regalloc_printf("\t shouldSaveReg for iRPC\n");
+   }
+   if (reg->liveState != registerSlot::live) {
+      regalloc_printf("\t Reg %d not live, concluding don't save\n", reg->number);
+      return false;
+   }
+   if (saveFlags) {
+   }
+   if (inst && inst->validOptimizationInfo() && !inst->definedRegs[reg->encoding()]) {
+      regalloc_printf("\t Base tramp instance doesn't have reg %d (num %d) defined; concluding don't save\n",
+                      reg->encoding(), reg->number);
+      return false;
+   }
+   return true;
+}
+
