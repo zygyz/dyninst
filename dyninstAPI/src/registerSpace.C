@@ -88,7 +88,7 @@ void registerSlot::cleanSlot() {
 
 unsigned registerSlot::encoding() const {
     // Should write this for all platforms when the encoding is done.
-#if defined(arch_power)
+#if defined(arch_power) || defined(arch_aarch64)
     switch (type) {
     case GPR:
         return registerSpace::GPR(number);

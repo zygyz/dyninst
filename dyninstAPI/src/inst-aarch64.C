@@ -61,6 +61,9 @@
 
 #include <sstream>
 
+#include "ABI.h"
+#include "liveness.h"
+#include "RegisterConversion.h"
 #include "dyninstAPI/h/BPatch_memoryAccess_NP.h"
 
 extern bool isPowerOf2(int value, int &result);
@@ -495,12 +498,42 @@ Register EmitterAARCH64::emitCallReplacement(opCode ocode,
 // Instrumentation vs function call replacement
 // Static vs. dynamic
 
-Register EmitterAARCH64::emitCall(opCode ocode,
-                                codeGen &gen,
-                                const pdvector<AstNodePtr> &operands,
-                                bool noCost,
-                                func_instance *callee) {
-    return NULL;
+static Register aarch64_arg_regs[] = { aarch64::x0 };
+#define AARCH64_ARG_REGS (sizeof(aarch64_arg_regs) / sizeof(Register))
+Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNodePtr> &operands,
+                                bool noCost, func_instance *callee)
+{
+   assert(op == callOp);
+   pdvector <Register> srcs;
+
+   bool inInstrumentation = true;
+
+   //  Sanity check for NULL address arg
+   if (!callee) {
+      char msg[256];
+      sprintf(msg, "%s[%d]:  internal error:  emitFuncCall called w/out"
+              "callee argument", __FILE__, __LINE__);
+      showErrorCallback(80, msg);
+      assert(0);
+   }
+
+   // Before we generate argument code, save any register that's live across
+   // the call.
+   pdvector<pair<unsigned,int> > savedRegsToRestore;
+   if (inInstrumentation) {
+      bitArray regsClobberedByCall = ABI::getABI(8)->getCallWrittenRegisters();
+      for (int i = 0; i < gen.rs()->numGPRs(); i++) {
+         registerSlot *reg = gen.rs()->GPRs()[i];
+         Register r = reg->encoding();
+         static LivenessAnalyzer live(8);
+         bool callerSave =
+            regsClobberedByCall.test(live.getIndex(regToMachReg64.equal_range(r).first->second));
+         if (!callerSave) {
+            // We don't care!
+            //regalloc_printf("%s[%d]: pre-call, skipping callee-saved register %d\n", FILE__, __LINE__,
+         }
+      }
+   }
 }
 
 
