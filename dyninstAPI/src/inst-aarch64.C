@@ -500,11 +500,10 @@ Register emitFuncCall(opCode, codeGen &, pdvector<AstNodePtr> &, bool, Address) 
     return 0;
 }
 
-Register emitFuncCall(opCode op,
-        codeGen &gen,
-        pdvector<AstNodePtr> &operands, bool noCost,
-        func_instance *callee) {
-    return 0;
+Register emitFuncCall(opCode op, codeGen &gen, pdvector<AstNodePtr> &operands,
+            bool noCost, func_instance *callee) {
+    Register reg = gen.codeEmitter()->emitCall(op, gen, operands, noCost, callee);
+    return reg;
 }
 
 Register EmitterAARCH64::emitCallReplacement(opCode ocode,
