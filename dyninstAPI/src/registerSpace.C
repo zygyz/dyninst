@@ -501,8 +501,7 @@ bool registerSpace::checkVolatileRegisters(codeGen & /*gen*/,
 bool registerSpace::checkVolatileRegisters(codeGen &,
                                            registerSlot::livenessState_t)
 {
-    assert(0);
-    return false;
+    return true;
 }
 #endif
 
@@ -560,7 +559,7 @@ bool registerSpace::saveVolatileRegisters(codeGen &gen)
 }
 #else
 bool registerSpace::saveVolatileRegisters(codeGen &) {
-    assert(0);
+    //assert(0);
     return true;
 }
 #endif

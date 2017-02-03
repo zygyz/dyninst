@@ -71,14 +71,14 @@ extern bool isPowerOf2(int value, int &result);
 #define DISTANCE(x,y)   ((x<y) ? (y-x) : (x-y))
 
 Address getMaxBranch() {
-  return MAX_BRANCH;
+    return MAX_BRANCH;
 }
 
 //aarch64 contains 31 GPRs
 const char *registerNames[] = { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
-			"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
-			"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
-			"r24", "r25", "r26", "r27", "r28", "r29", "r30"};
+    "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+    "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
+    "r24", "r25", "r26", "r27", "r28", "r29", "r30"};
 
 std::unordered_map<std::string, unsigned> funcFrequencyTable;
 
@@ -101,9 +101,9 @@ void registerSpace::initialize64() {
 
     pdvector<registerSlot *> registers;
     for (unsigned i = r0; i <= r30; ++i) {
-       char name[31];
-       sprintf(name, "r%2d", i-r0);
-       registers.push_back(new registerSlot(i, name, false, registerSlot::liveAlways, registerSlot::GPR));
+        char name[31];
+        sprintf(name, "r%2d", i-r0);
+        registers.push_back(new registerSlot(i, name, false, registerSlot::liveAlways, registerSlot::GPR));
     }
 
     registerSpace::createRegisterSpace64(registers);
@@ -111,7 +111,7 @@ void registerSpace::initialize64() {
 }
 
 void registerSpace::initialize() {
-	initialize64();
+    initialize64();
 }
 
 unsigned registerSpace::SPR(Register x) {
@@ -119,9 +119,9 @@ unsigned registerSpace::SPR(Register x) {
 }
 
 void saveSPR(codeGen &gen,     //Instruction storage pointer
-             Register    scratchReg, //Scratch register
-             int         sprnum,     //SPR number
-             int         stkOffset) //Offset from stack pointer
+        Register    scratchReg, //Scratch register
+        int         sprnum,     //SPR number
+        int         stkOffset) //Offset from stack pointer
 {
 
 }
@@ -142,203 +142,203 @@ bool shouldSaveReg(registerSlot *reg, baseTramp *inst, bool saveFlags)
     }
     if (inst && inst->validOptimizationInfo() && !inst->definedRegs[reg->encoding()]) {
         regalloc_printf("\t Base tramp instance doesn't have reg %d (num %d) defined; concluding don't save\n",
-            reg->encoding(), reg->number);
+                reg->encoding(), reg->number);
         return false;
     }
     return true;
 }
-    ////////////////////////////////////////////////////////////////////
-    //Generates instructions to restore a special purpose register from
-    //the stack.
-    //  Returns the number of bytes needed to store the generated
-    //    instructions.
-    //  The instruction storage pointer is advanced the number of
-    //    instructions generated.
-    //
+////////////////////////////////////////////////////////////////////
+//Generates instructions to restore a special purpose register from
+//the stack.
+//  Returns the number of bytes needed to store the generated
+//    instructions.
+//  The instruction storage pointer is advanced the number of
+//    instructions generated.
+//
 void restoreSPR(codeGen &gen,       //Instruction storage pointer
-                Register      scratchReg, //Scratch register
-                int           sprnum,     //SPR number
-                int           stkOffset)  //Offset from stack pointer
+        Register      scratchReg, //Scratch register
+        int           sprnum,     //SPR number
+        int           stkOffset)  //Offset from stack pointer
 {
 
 }
 
-           ////////////////////////////////////////////////////////////////////
-	   //Generates instructions to save link register onto stack.
-	   //  Returns the number of bytes needed to store the generated
-	   //    instructions.
-	   //  The instruction storage pointer is advanced the number of
-	   //    instructions generated.
+////////////////////////////////////////////////////////////////////
+//Generates instructions to save link register onto stack.
+//  Returns the number of bytes needed to store the generated
+//    instructions.
+//  The instruction storage pointer is advanced the number of
+//    instructions generated.
 void saveLR(codeGen &gen,       //Instruction storage pointer
-            Register      scratchReg, //Scratch register
-            int           stkOffset)  //Offset from stack pointer
+        Register      scratchReg, //Scratch register
+        int           stkOffset)  //Offset from stack pointer
 {
 
 }
 
-           ////////////////////////////////////////////////////////////////////
-           //Generates instructions to restore link register from stack.
-           //  Returns the number of bytes needed to store the generated
-	   //    instructions.
-	   //  The instruction storage pointer is advanced the number of
-	   //    instructions generated.
-	   //
+////////////////////////////////////////////////////////////////////
+//Generates instructions to restore link register from stack.
+//  Returns the number of bytes needed to store the generated
+//    instructions.
+//  The instruction storage pointer is advanced the number of
+//    instructions generated.
+//
 void restoreLR(codeGen &gen,       //Instruction storage pointer
-               Register      scratchReg, //Scratch register
-               int           stkOffset)  //Offset from stack pointer
+        Register      scratchReg, //Scratch register
+        int           stkOffset)  //Offset from stack pointer
 {
 
 }
 
-           ////////////////////////////////////////////////////////////////////
-           //Generates instructions to place a given value into link register.
-	   //  The entire instruction sequence consists of the generated
-	   //    instructions followed by a given (tail) instruction.
-	   //  Returns the number of bytes needed to store the entire
-	   //    instruction sequence.
-	   //  The instruction storage pointer is advanced the number of
-	   //    instructions in the sequence.
-	   //
+////////////////////////////////////////////////////////////////////
+//Generates instructions to place a given value into link register.
+//  The entire instruction sequence consists of the generated
+//    instructions followed by a given (tail) instruction.
+//  Returns the number of bytes needed to store the entire
+//    instruction sequence.
+//  The instruction storage pointer is advanced the number of
+//    instructions in the sequence.
+//
 void setBRL(codeGen &gen,        //Instruction storage pointer
-            Register      scratchReg,  //Scratch register
-            long          val,         //Value to set link register to
-            instruction   ti)          //Tail instruction
+        Register      scratchReg,  //Scratch register
+        long          val,         //Value to set link register to
+        instruction   ti)          //Tail instruction
 {
 
 }
 
-     //////////////////////////////////////////////////////////////////////////
-     //Writes out instructions to place a value into the link register.
-     //  If val == 0, then the instruction sequence is followed by a `nop'.
-     //  If val != 0, then the instruction sequence is followed by a `brl'.
-     //
+//////////////////////////////////////////////////////////////////////////
+//Writes out instructions to place a value into the link register.
+//  If val == 0, then the instruction sequence is followed by a `nop'.
+//  If val != 0, then the instruction sequence is followed by a `brl'.
+//
 void resetBRL(AddressSpace  *p,   //Process to write instructions into
-	      Address   loc, //Address in process to write into
-	      unsigned  val) //Value to set link register
+        Address   loc, //Address in process to write into
+        unsigned  val) //Value to set link register
 {
 
 }
 
-    /////////////////////////////////////////////////////////////////////////
-    //Generates instructions to save the condition codes register onto stack.
-    //  Returns the number of bytes needed to store the generated
-    //    instructions.
-    //  The instruction storage pointer is advanced the number of
-    //    instructions generated.
-    //
+/////////////////////////////////////////////////////////////////////////
+//Generates instructions to save the condition codes register onto stack.
+//  Returns the number of bytes needed to store the generated
+//    instructions.
+//  The instruction storage pointer is advanced the number of
+//    instructions generated.
+//
 void saveCR(codeGen &gen,       //Instruction storage pointer
-            Register      scratchReg, //Scratch register
-            int           stkOffset)  //Offset from stack pointer
+        Register      scratchReg, //Scratch register
+        int           stkOffset)  //Offset from stack pointer
 {
 
 }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //Generates instructions to restore the condition codes register from stack.
-    //  Returns the number of bytes needed to store the generated
-    //    instructions.
-    //  The instruction storage pointer is advanced the number of
-    //    instructions generated.
-    //
+///////////////////////////////////////////////////////////////////////////
+//Generates instructions to restore the condition codes register from stack.
+//  Returns the number of bytes needed to store the generated
+//    instructions.
+//  The instruction storage pointer is advanced the number of
+//    instructions generated.
+//
 void restoreCR(codeGen &gen,       //Instruction storage pointer
-               Register      scratchReg, //Scratch register
-               int           stkOffset)  //Offset from stack pointer
+        Register      scratchReg, //Scratch register
+        int           stkOffset)  //Offset from stack pointer
 {
 
 }
 
-    /////////////////////////////////////////////////////////////////////////
-    //Generates instructions to save the floating point status and control
-    //register on the stack.
-    //  Returns the number of bytes needed to store the generated
-    //    instructions.
-    //  The instruction storage pointer is advanced the number of
-    //    instructions generated.
-    //
+/////////////////////////////////////////////////////////////////////////
+//Generates instructions to save the floating point status and control
+//register on the stack.
+//  Returns the number of bytes needed to store the generated
+//    instructions.
+//  The instruction storage pointer is advanced the number of
+//    instructions generated.
+//
 void saveFPSCR(codeGen &gen,       //Instruction storage pointer
-               Register      scratchReg, //Scratch fp register
-               int           stkOffset)  //Offset from stack pointer
+        Register      scratchReg, //Scratch fp register
+        int           stkOffset)  //Offset from stack pointer
 {
 
 }
 
-    ///////////////////////////////////////////////////////////////////////////
-    //Generates instructions to restore the floating point status and control
-    //register from the stack.
-    //  Returns the number of bytes needed to store the generated
-    //    instructions.
-    //  The instruction storage pointer is advanced the number of
-    //    instructions generated.
-    //
+///////////////////////////////////////////////////////////////////////////
+//Generates instructions to restore the floating point status and control
+//register from the stack.
+//  Returns the number of bytes needed to store the generated
+//    instructions.
+//  The instruction storage pointer is advanced the number of
+//    instructions generated.
+//
 void restoreFPSCR(codeGen &gen,       //Instruction storage pointer
-                  Register      scratchReg, //Scratch fp register
-                  int           stkOffset)  //Offset from stack pointer
+        Register      scratchReg, //Scratch fp register
+        int           stkOffset)  //Offset from stack pointer
 {
 }
 
-     //////////////////////////////////////////////////////////////////////////
-     //Writes out a `br' instruction
-     //
+//////////////////////////////////////////////////////////////////////////
+//Writes out a `br' instruction
+//
 void resetBR(AddressSpace  *p,    //Process to write instruction into
-	     Address   loc)  //Address in process to write into
+        Address   loc)  //Address in process to write into
 {
 }
 
 void saveRegisterAtOffset(codeGen &gen,
-                          Register reg,
-                          int save_off) {
+        Register reg,
+        int save_off) {
 }
 
 // Dest != reg : optimizate away a load/move pair
 void saveRegister(codeGen &gen,
-                  Register source,
-                  Register dest,
-                  int save_off)
+        Register source,
+        Register dest,
+        int save_off)
 {
 }
 
 void saveRegister(codeGen &gen,
-                  Register reg,
-                  int save_off)
+        Register reg,
+        int save_off)
 {
 }
 
 void restoreRegisterAtOffset(codeGen &gen,
-                             Register dest,
-                             int saved_off) {
+        Register dest,
+        int saved_off) {
 }
 
 // Dest != reg : optimizate away a load/move pair
 void restoreRegister(codeGen &gen,
-                     Register source,
-                     Register dest,
-                     int saved_off)
+        Register source,
+        Register dest,
+        int saved_off)
 {
 
 }
 
 void restoreRegister(codeGen &gen,
-                     Register reg,
-                     int save_off)
+        Register reg,
+        int save_off)
 {
 }
 
 void saveFPRegister(codeGen &gen,
-                    Register reg,
-                    int save_off)
+        Register reg,
+        int save_off)
 {
 }
 
 void restoreFPRegister(codeGen &gen,
-                       Register source,
-                       Register dest,
-                       int save_off)
+        Register source,
+        Register dest,
+        int save_off)
 {
 }
 
 void restoreFPRegister(codeGen &gen,
-                       Register reg,
-                       int save_off)
+        Register reg,
+        int save_off)
 {
 }
 
@@ -361,8 +361,8 @@ void popStack(codeGen &gen)
  *   next free slot.
  */
 unsigned saveGPRegisters(codeGen &gen,
-                         registerSpace *theRegSpace,
-                         int save_off, int numReqGPRs)
+        registerSpace *theRegSpace,
+        int save_off, int numReqGPRs)
 {
 }
 
@@ -375,8 +375,8 @@ unsigned saveGPRegisters(codeGen &gen,
  */
 
 unsigned restoreGPRegisters(codeGen &gen,
-                            registerSpace *theRegSpace,
-                            int save_off)
+        registerSpace *theRegSpace,
+        int save_off)
 {
     return 0;
 }
@@ -388,12 +388,12 @@ unsigned restoreGPRegisters(codeGen &gen,
  */
 
 unsigned saveFPRegisters(codeGen &gen,
-                         registerSpace * theRegSpace,
-                         int save_off)
+        registerSpace * theRegSpace,
+        int save_off)
 {
-  unsigned numRegs = 0;
+    unsigned numRegs = 0;
 
-  return numRegs;
+    return numRegs;
 }
 
 /*
@@ -403,12 +403,12 @@ unsigned saveFPRegisters(codeGen &gen,
  */
 
 unsigned restoreFPRegisters(codeGen &gen,
-                            registerSpace *theRegSpace,
-                            int save_off)
+        registerSpace *theRegSpace,
+        int save_off)
 {
-  unsigned numRegs = 0;
+    unsigned numRegs = 0;
 
-  return numRegs;
+    return numRegs;
 }
 
 /*
@@ -416,9 +416,9 @@ unsigned restoreFPRegisters(codeGen &gen,
  * CTR, CR, XER, SPR0, FPSCR
  */
 unsigned saveSPRegisters(codeGen &gen,
-                         registerSpace *,
-                         int save_off,
-			 int force_save)
+        registerSpace *,
+        int save_off,
+        int force_save)
 {
     unsigned num_saved = 0;
     return num_saved;
@@ -430,9 +430,9 @@ unsigned saveSPRegisters(codeGen &gen,
  */
 
 unsigned restoreSPRegisters(codeGen &gen,
-                            registerSpace *,
-                            int save_off,
-			    int force_save)
+        registerSpace *,
+        int save_off,
+        int force_save)
 {
     int cr_off, ctr_off, xer_off, spr0_off, fpscr_off;
     unsigned num_restored = 0;
@@ -441,37 +441,37 @@ unsigned restoreSPRegisters(codeGen &gen,
 
 
 bool baseTramp::generateSaves(codeGen &gen,
-                              registerSpace *)
+        registerSpace *)
 {
     return gen.codeEmitter()->emitBTSaves(this, gen);
 }
 
 bool baseTramp::generateRestores(codeGen &gen,
-                                 registerSpace *)
+        registerSpace *)
 {
     return true;
 }
 
 
 void emitImm(opCode op, Register src1, RegValue src2imm, Register dest,
-             codeGen &gen, bool noCost, registerSpace * /* rs */)
+        codeGen &gen, bool noCost, registerSpace * /* rs */)
 {
 }
 
 void cleanUpAndExit(int status);
 
 /* Recursive function that goes to where our instrumentation is calling
-to figure out what registers are clobbered there, and in any function
-that it calls, to a certain depth ... at which point we clobber everything
+   to figure out what registers are clobbered there, and in any function
+   that it calls, to a certain depth ... at which point we clobber everything
 
-Update-12/06, njr, since we're going to a cached system we are just going to
-look at the first level and not do recursive, since we would have to also
-store and reexamine every call out instead of doing it on the fly like before*/
+   Update-12/06, njr, since we're going to a cached system we are just going to
+   look at the first level and not do recursive, since we would have to also
+   store and reexamine every call out instead of doing it on the fly like before*/
 bool EmitterAARCH64::clobberAllFuncCall( registerSpace *rs,
-                                       func_instance * callee)
+        func_instance * callee)
 
 {
-  return false;
+    return false;
 }
 
 
@@ -497,20 +497,20 @@ bool EmitterAARCH64::clobberAllFuncCall( registerSpace *rs,
 //
 
 Register emitFuncCall(opCode, codeGen &, pdvector<AstNodePtr> &, bool, Address) {
-        return 0;
+    return 0;
 }
 
 Register emitFuncCall(opCode op,
-                      codeGen &gen,
-                      pdvector<AstNodePtr> &operands, bool noCost,
-                      func_instance *callee) {
+        codeGen &gen,
+        pdvector<AstNodePtr> &operands, bool noCost,
+        func_instance *callee) {
     return 0;
 }
 
 Register EmitterAARCH64::emitCallReplacement(opCode ocode,
-                                           codeGen &gen,
-                                           bool /* noCost */,
-                                           func_instance *callee) {
+        codeGen &gen,
+        bool /* noCost */,
+        func_instance *callee) {
     return 0;
 }
 
@@ -519,43 +519,107 @@ Register EmitterAARCH64::emitCallReplacement(opCode ocode,
 // Instrumentation vs function call replacement
 // Static vs. dynamic
 
-static Register aarch64_arg_regs[] = { aarch64::x0, aarch64::x1, aarch64::x2, aarch64::x3, aarch64::x4, aarch64::x5, aarch64::x6, aarch64::x7 };
+static Register aarch64_arg_regs[] = { aarch64::x0, aarch64::x1, aarch64::x2, aarch64::x3, aarch64::x4, aarch64::x5, aarch64::x6, aarch64::x7  };
 #define AARCH64_ARG_REGS (sizeof(aarch64_arg_regs) / sizeof(Register))
 Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNodePtr> &operands,
-                                bool noCost, func_instance *callee)
+        bool noCost, func_instance *callee)
 {
-   assert(op == callOp);
-   pdvector <Register> srcs;
+    assert(op == callOp);
+    pdvector<Register> srcs;
 
-   bool inInstrumentation = true;
+    bool inInstrumentation = true;
+    //  Sanity check for NULL address arg
+    if (!callee) {
+        char msg[256];
+        sprintf(msg, "%s[%d]:  internal error:  emitFuncCall called w/out"
+                "callee argument", __FILE__, __LINE__);
+        showErrorCallback(80, msg);
+        assert(0);
+    }
 
-   //  Sanity check for NULL address arg
-   if (!callee) {
-      char msg[256];
-      sprintf(msg, "%s[%d]:  internal error:  emitFuncCall called w/out"
-              "callee argument", __FILE__, __LINE__);
-      showErrorCallback(80, msg);
-      assert(0);
-   }
+    // Before we generate argument code, save any register that's live across
+    // the call.
+    pdvector<pair<unsigned,int> > savedRegsToRestore;
+    if (inInstrumentation) {
+        bitArray regsClobberedByCall = ABI::getABI(8)->getCallWrittenRegisters();
+        for (int i = 0; i < gen.rs()->numGPRs(); i++) {
+            registerSlot *reg = gen.rs()->GPRs()[i];
+            Register r = reg->encoding();
+            static LivenessAnalyzer live(8);
+            bool callerSave =
+                regsClobberedByCall.test(live.getIndex(regToMachReg64.equal_range(r).first->second));
+            if (!callerSave) {
+                // We don't care!
+                regalloc_printf("%s[%d]: pre-call, skipping callee-saved register %d\n", FILE__, __LINE__, reg->number);
+            } 
 
-   // Before we generate argument code, save any register that's live across
-   // the call.
-   pdvector<pair<unsigned,int> > savedRegsToRestore;
-   if (inInstrumentation) {
-      bitArray regsClobberedByCall = ABI::getABI(8)->getCallWrittenRegisters();
-      for (int i = 0; i < gen.rs()->numGPRs(); i++) {
-         registerSlot *reg = gen.rs()->GPRs()[i];
-         Register r = reg->encoding();
-         static LivenessAnalyzer live(8);
-         bool callerSave =
-            regsClobberedByCall.test(live.getIndex(regToMachReg64.equal_range(r).first->second));
-         if (!callerSave) {
-            // We don't care!
-            //regalloc_printf("%s[%d]: pre-call, skipping callee-saved register %d\n", FILE__, __LINE__,
-         }
-      }
-   }
-    return Register(0);
+            regalloc_printf("%s[%d]: pre-call, register %d has refcount %d, keptValue %d, liveState %s\n",
+                    FILE__, __LINE__, reg->number, 
+                    reg->refCount,
+                    reg->keptValue,
+                    (reg->liveState == registerSlot::live) ? "live" : ((reg->liveState == registerSlot::spilled) ? "spilled" : "dead"));
+
+            if (reg->refCount > 0 ||  // Currently active
+                    reg->keptValue || // Has a kept value
+                    (reg->liveState == registerSlot::live)) { // needs to be saved pre-call
+                regalloc_printf("%s[%d]: \tsaving reg\n", FILE__, __LINE__);
+                pair<unsigned, unsigned> regToSave;
+                regToSave.first = reg->number;
+
+                regToSave.second = reg->refCount;
+                // We can have both a keptValue and a refCount - so I invert
+                // the refCount if there's a keptValue
+                if (reg->keptValue)
+                    regToSave.second *= -1;
+
+                savedRegsToRestore.push_back(regToSave);
+
+                // The register is live; save it.
+                //emitPushReg64(reg->encoding(), gen);
+                // And now that it's saved, nuke it
+                reg->refCount = 0;
+                reg->keptValue = false;
+            }
+            //if (regsClobberedByCall.test(live.getIndex(regToMachReg64.equal_range(r).first->second))) {
+            //     gen.markRegDefined(r);
+            //}
+        }
+    }
+
+    // generate code for arguments
+    int frame_size = 0;
+    for (int u = operands.size() - 1; u >= 0; u--) {
+        Address unused = ADDR_NULL;
+        unsigned reg = REG_NULL;
+        if (u >= (int)AARCH64_ARG_REGS) {
+             if (!operands[u]->generateCode_phase2(gen, noCost, unused, reg))
+                assert(0);
+             assert(reg != REG_NULL);
+             //emitPushReg64(reg, gen);
+             gen.rs()->freeRegister(reg);
+             frame_size++;
+        } else {
+            if (gen.rs()->allocateSpecificRegister(gen, (unsigned) aarch64_arg_regs[u], true))
+                reg = aarch64_arg_regs[u];
+            else {
+                cerr << "Error: tried to allocate register " << aarch64_arg_regs[u] << " and failed!" << endl;
+                assert(0);
+            }
+            gen.markRegDefined(reg);
+            if (!operands[u]->generateCode_phase2(gen, noCost, unused, reg)) 
+                assert(0);
+            if (reg != aarch64_arg_regs[u]) {
+                //emitMovRegToReg64(amd64_arg_regs[u], reg, true, gen);
+             }
+        }
+    }
+
+    Register ret = gen.rs()->allocateRegister(gen, noCost);
+    gen.markRegDefined(ret);
+    //emitMovRegToReg64(ret, aarch64::x0, true, gen);
+
+    return ret;
+
 }
 
 bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
@@ -569,24 +633,28 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
     }
 
     bool useFPRs =  BPatch::bpatch->isForceSaveFPROn() ||
-                  ( BPatch::bpatch->isSaveFPROn()      &&
-                    gen.rs()->anyLiveFPRsAtEntry()     &&
-                    bt->saveFPRs() &&
-                    bt->makesCall() );
+        ( BPatch::bpatch->isSaveFPROn()      &&
+          gen.rs()->anyLiveFPRsAtEntry()     &&
+          bt->saveFPRs() &&
+          bt->makesCall() );
     bool alignStack = useFPRs || !bt || bt->checkForFuncCalls();
     bool saveFlags = false; // gen.rs()->checkVolatileRegisters(gen, registerSlot::live);
     bool createFrame = !bt || bt->needsFrame() || useFPRs || bt->makesCall();
     bool saveOrigAddr = createFrame && bt->instP();
- 
+
     int num_saved = 0;
     int num_to_save = 0;
-    //Calculate the number of registers we'll save
+    // Calculate the number of registers we'll save
+#if 1
+    std::cout << "creatFrame " << createFrame << std::endl;
+    assert(gen.rs()->numGPRs() == 31);
+#endif
     for (int i = 0; i < gen.rs()->numGPRs(); i++) {
         registerSlot *reg = gen.rs()->GPRs()[i];
         if (!shouldSaveReg(reg, bt, saveFlags))
             continue;
-        //if (createFrame && reg->encoding() == REGNUM_RBP)
-        //    continue;
+        if (createFrame && reg->encoding() == aarch64::FPR)
+            continue;
         num_to_save++;
     }
     if (createFrame) {
@@ -605,12 +673,11 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
 
         if (!shouldSaveReg(reg, bt, saveFlags))
             continue;
-        //if (createFrame && reg->encoding() == REGNUM_RBP)
-        //    continue;
+        if (createFrame && reg->encoding() == aarch64::FPR)
+            continue;
         //emitPushReg64(reg->encoding(),gen);
         // We move the FP down to just under here, so we're actually
         // measuring _up_ from the FP.
-        assert((18-num_saved) > 0);
         num_saved++;
         gen.rs()->markSavedRegister(reg->encoding(), num_to_save-num_saved);
     }
@@ -633,51 +700,51 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
 
     int numRegsUsed = bt ? bt->numDefinedRegs() : -1;
     if (numRegsUsed == -1 ||
-        numRegsUsed > X86_REGS_SAVE_LIMIT)
+            numRegsUsed > X86_REGS_SAVE_LIMIT)
     {
-       //emitSimpleInsn(PUSHAD, gen);
-       gen.rs()->incStack(8 * 4);
-       num_saved = 8;
+        //emitSimpleInsn(PUSHAD, gen);
+        gen.rs()->incStack(8 * 4);
+        num_saved = 8;
 
-       //gen.rs()->markSavedRegister(RealRegister(aarch64:x0), 7 + flags_saved_i + base_i);
-       if(flags_saved)
-       {
-           //gen.rs()->markSavedRegister(IA32_FLAG_VIRTUAL_REGISTER, 7 + base_i);
-       }
-       //gen.rs()->markSavedRegister(RealRegister(REGNUM_ECX), 6 + base_i);
-       //gen.rs()->markSavedRegister(RealRegister(REGNUM_EDX), 5 + base_i);
-       //gen.rs()->markSavedRegister(RealRegister(REGNUM_EBX), 4 + base_i);
-       //gen.rs()->markSavedRegister(RealRegister(REGNUM_ESP), 3 + base_i);
-       //if (!createFrame)
-       //   gen.rs()->markSavedRegister(RealRegister(REGNUM_EBP), 2 + base_i);
-       //gen.rs()->markSavedRegister(RealRegister(REGNUM_ESI), 1 + base_i);
-       //gen.rs()->markSavedRegister(RealRegister(REGNUM_EDI), 0 + base_i);
+        //gen.rs()->markSavedRegister(RealRegister(aarch64:x0), 7 + flags_saved_i + base_i);
+        if(flags_saved)
+        {
+            //gen.rs()->markSavedRegister(IA32_FLAG_VIRTUAL_REGISTER, 7 + base_i);
+        }
+        //gen.rs()->markSavedRegister(RealRegister(REGNUM_ECX), 6 + base_i);
+        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EDX), 5 + base_i);
+        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EBX), 4 + base_i);
+        //gen.rs()->markSavedRegister(RealRegister(REGNUM_ESP), 3 + base_i);
+        //if (!createFrame)
+        //   gen.rs()->markSavedRegister(RealRegister(REGNUM_EBP), 2 + base_i);
+        //gen.rs()->markSavedRegister(RealRegister(REGNUM_ESI), 1 + base_i);
+        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EDI), 0 + base_i);
     }
     else
     {
-       pdvector<registerSlot *> &regs = gen.rs()->trampRegs();
-       for (unsigned i=0; i<regs.size(); i++) {
-          registerSlot *reg = regs[i];
-          if (bt->definedRegs[reg->encoding()]) {
-             //::emitPush(RealRegister(reg->encoding()), gen);
-             num_saved++;
-          }
-       }
-       assert(num_saved == numRegsUsed);
+        pdvector<registerSlot *> &regs = gen.rs()->trampRegs();
+        for (unsigned i=0; i<regs.size(); i++) {
+            registerSlot *reg = regs[i];
+            if (bt->definedRegs[reg->encoding()]) {
+                //::emitPush(RealRegister(reg->encoding()), gen);
+                num_saved++;
+            }
+        }
+        assert(num_saved == numRegsUsed);
     }
 
     if (saveOrigAddr) {
-       //emitPushImm(bt->instP()->addr_compat(), gen);
+        //emitPushImm(bt->instP()->addr_compat(), gen);
     }
     if (createFrame)
     {
-       // For now, we'll do all saves then do the guard. Could inline
-       //        // Return addr for stack frame walking; for lack of a better idea,
-       // we grab the original instPoint address
-       //emitSimpleInsn(PUSH_EBP, gen);
-       gen.rs()->incStack(4);
-       //emitMovRegToReg(RealRegister(REGNUM_EBP), RealRegister(REGNUM_ESP), gen);
-       //gen.rs()->markSavedRegister(RealRegister(REGNUM_EBP), 0);
+        // For now, we'll do all saves then do the guard. Could inline
+        //        // Return addr for stack frame walking; for lack of a better idea,
+        // we grab the original instPoint address
+        //emitSimpleInsn(PUSH_EBP, gen);
+        gen.rs()->incStack(4);
+        //emitMovRegToReg(RealRegister(REGNUM_EBP), RealRegister(REGNUM_ESP), gen);
+        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EBP), 0);
     }
 
     // Not sure liveness touches this yet, so not using
@@ -686,7 +753,7 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
     // Prepare our stack bookkeeping data structures.
     instFrameSize += (flags_saved_i + num_saved + base_i) * 4;
     if (bt) {
-       bt->stackHeight = instFrameSize;
+        bt->stackHeight = instFrameSize;
     }
     //gen.rs()->setInstFrameSize(instFrameSize);
     //gen.rs()->setStackHeight(0);
@@ -711,14 +778,14 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
 }
 
 codeBufIndex_t emitA(opCode op, Register src1, Register /*src2*/, long dest,
-	      codeGen &gen, RegControl, bool /*noCost*/)
+        codeGen &gen, RegControl, bool /*noCost*/)
 {
     return NULL;
 }
 
 Register emitR(opCode op, Register src1, Register src2, Register dest,
-               codeGen &gen, bool /*noCost*/,
-               const instPoint * /*location*/, bool /*for_MT*/)
+        codeGen &gen, bool /*noCost*/,
+        const instPoint * /*location*/, bool /*for_MT*/)
 {
 
     return REG_NULL;
@@ -726,7 +793,7 @@ Register emitR(opCode op, Register src1, Register src2, Register dest,
 
 void emitJmpMC(int /*condition*/, int /*offset*/, codeGen &)
 {
-  // Not needed for memory instrumentation, otherwise TBD
+    // Not needed for memory instrumentation, otherwise TBD
 }
 
 
@@ -734,12 +801,12 @@ void emitJmpMC(int /*condition*/, int /*offset*/, codeGen &)
 // VG(03/15/02): Sync'd with the new AIX tramp
 static inline bool needsRestore(Register x)
 {
-	return false;
+    return false;
 }
 
 // VG(03/15/02): Restore mutatee value of GPR reg to dest GPR
 static inline void restoreGPRtoGPR(codeGen &gen,
-                                   Register reg, Register dest)
+        Register reg, Register dest)
 {
 }
 
@@ -750,7 +817,7 @@ static inline void restoreXERtoGPR(codeGen &gen, Register dest)
 
 // VG(03/15/02): Move bits 25:31 of GPR reg to GPR dest
 static inline void moveGPR2531toGPR(codeGen &gen,
-                                    Register reg, Register dest)
+        Register reg, Register dest)
 {
 }
 
@@ -758,45 +825,45 @@ static inline void moveGPR2531toGPR(codeGen &gen,
 // another. The original value may need to be restored from stack...
 // VG(03/15/02): Made functionality more obvious by adding the above functions
 static inline void emitAddOriginal(Register src, Register acc,
-                                   codeGen &gen, bool noCost)
+        codeGen &gen, bool noCost)
 {
 }
 
 // VG(11/07/01): Load in destination the effective address given
 // by the address descriptor. Used for memory access stuff.
 void emitASload(const BPatch_addrSpec_NP *as, Register dest, int stackShift,
-		codeGen &gen,
-		bool noCost)
+        codeGen &gen,
+        bool noCost)
 {
 }
 
 void emitCSload(const BPatch_addrSpec_NP *as, Register dest, codeGen &gen,
-		bool noCost)
+        bool noCost)
 {
 }
 
 void emitVload(opCode op, Address src1, Register src2, Register dest,
-               codeGen &gen, bool /*noCost*/,
-               registerSpace * /*rs*/, int size,
-               const instPoint * /* location */, AddressSpace *proc)
+        codeGen &gen, bool /*noCost*/,
+        registerSpace * /*rs*/, int size,
+        const instPoint * /* location */, AddressSpace *proc)
 {
 }
 
 void emitVstore(opCode op, Register src1, Register /*src2*/, Address dest,
-		codeGen &gen, bool noCost,
-                registerSpace * /* rs */, int size,
-                const instPoint * /* location */, AddressSpace *proc)
+        codeGen &gen, bool noCost,
+        registerSpace * /* rs */, int size,
+        const instPoint * /* location */, AddressSpace *proc)
 {
-  return;
+    return;
 }
 
 void emitV(opCode op, Register src1, Register src2, Register dest,
-           codeGen &gen, bool /*noCost*/,
-           registerSpace * /*rs*/, int size,
-           const instPoint * /* location */, AddressSpace *proc)
+        codeGen &gen, bool /*noCost*/,
+        registerSpace * /*rs*/, int size,
+        const instPoint * /* location */, AddressSpace *proc)
 {
-	assert(0); //not implemented
-	return;
+    assert(0); //not implemented
+    return;
 }
 
 //
@@ -805,8 +872,8 @@ void emitV(opCode op, Register src1, Register src2, Register dest,
 //   instructions and hope that is fairly close. - jkh 1/30/96
 //
 int getInsnCost(opCode op)
-  {
-	assert(0); //Not implemented
+{
+    assert(0); //Not implemented
     return NULL;
 }
 
@@ -814,72 +881,72 @@ int getInsnCost(opCode op)
 // What does this do???
 void registerSpace::saveClobberInfo(const instPoint *location)
 {
-  registerSlot *regSlot = NULL;
-  registerSlot *regFPSlot = NULL;
-  if (location == NULL)
-    return;
-  if (location->actualGPRLiveSet_ != NULL && location->actualFPRLiveSet_ != NULL)
+    registerSlot *regSlot = NULL;
+    registerSlot *regFPSlot = NULL;
+    if (location == NULL)
+        return;
+    if (location->actualGPRLiveSet_ != NULL && location->actualFPRLiveSet_ != NULL)
     {
 
-      // REG guard registers, if live, must be saved
-      if (location->actualGPRLiveSet_[ REG_GUARD_ADDR ] == LIVE_REG)
-	location->actualGPRLiveSet_[ REG_GUARD_ADDR ] = LIVE_CLOBBERED_REG;
+        // REG guard registers, if live, must be saved
+        if (location->actualGPRLiveSet_[ REG_GUARD_ADDR ] == LIVE_REG)
+            location->actualGPRLiveSet_[ REG_GUARD_ADDR ] = LIVE_CLOBBERED_REG;
 
-      if (location->actualGPRLiveSet_[ REG_GUARD_OFFSET ] == LIVE_REG)
-	location->actualGPRLiveSet_[ REG_GUARD_OFFSET ] = LIVE_CLOBBERED_REG;
+        if (location->actualGPRLiveSet_[ REG_GUARD_OFFSET ] == LIVE_REG)
+            location->actualGPRLiveSet_[ REG_GUARD_OFFSET ] = LIVE_CLOBBERED_REG;
 
-      // GPR and FPR scratch registers, if live, must be saved
-      if (location->actualGPRLiveSet_[ REG_SCRATCH ] == LIVE_REG)
-	location->actualGPRLiveSet_[ REG_SCRATCH ] = LIVE_CLOBBERED_REG;
+        // GPR and FPR scratch registers, if live, must be saved
+        if (location->actualGPRLiveSet_[ REG_SCRATCH ] == LIVE_REG)
+            location->actualGPRLiveSet_[ REG_SCRATCH ] = LIVE_CLOBBERED_REG;
 
-      if (location->actualFPRLiveSet_[ REG_SCRATCH ] == LIVE_REG)
-	location->actualFPRLiveSet_[ REG_SCRATCH ] = LIVE_CLOBBERED_REG;
+        if (location->actualFPRLiveSet_[ REG_SCRATCH ] == LIVE_REG)
+            location->actualFPRLiveSet_[ REG_SCRATCH ] = LIVE_CLOBBERED_REG;
 
-      // Return func call register, since we make a call because
-      // of multithreading (regardless if it's threaded) from BT
-      // we must save return register
-      if (location->actualGPRLiveSet_[ 3 ] == LIVE_REG)
-	location->actualGPRLiveSet_[ 3 ] = LIVE_CLOBBERED_REG;
-
-
-      for (u_int i = 0; i < getRegisterCount(); i++)
-	{
-	  regSlot = getRegSlot(i);
-
-	  if (  location->actualGPRLiveSet_[ (int) registers[i].number ] == LIVE_REG )
-	    {
-	      if (!registers[i].beenClobbered)
-		location->actualGPRLiveSet_[ (int) registers[i].number ] = LIVE_UNCLOBBERED_REG;
-	      else
-		location->actualGPRLiveSet_[ (int) registers[i].number ] = LIVE_CLOBBERED_REG;
-	    }
+        // Return func call register, since we make a call because
+        // of multithreading (regardless if it's threaded) from BT
+        // we must save return register
+        if (location->actualGPRLiveSet_[ 3 ] == LIVE_REG)
+            location->actualGPRLiveSet_[ 3 ] = LIVE_CLOBBERED_REG;
 
 
-	  if (  location->actualGPRLiveSet_[ (int) registers[i].number ] == LIVE_UNCLOBBERED_REG )
-	    {
-	      if (registers[i].beenClobbered)
-		location->actualGPRLiveSet_[ (int) registers[i].number ] = LIVE_CLOBBERED_REG;
-	    }
-	}
+        for (u_int i = 0; i < getRegisterCount(); i++)
+        {
+            regSlot = getRegSlot(i);
 
-      for (u_int i = 0; i < getFPRegisterCount(); i++)
-	{
-	  regFPSlot = getFPRegSlot(i);
+            if (  location->actualGPRLiveSet_[ (int) registers[i].number ] == LIVE_REG )
+            {
+                if (!registers[i].beenClobbered)
+                    location->actualGPRLiveSet_[ (int) registers[i].number ] = LIVE_UNCLOBBERED_REG;
+                else
+                    location->actualGPRLiveSet_[ (int) registers[i].number ] = LIVE_CLOBBERED_REG;
+            }
 
-	  if (  location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] == LIVE_REG )
-	    {
-	      if (!fpRegisters[i].beenClobbered)
-		location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] = LIVE_UNCLOBBERED_REG;
-	      else
-		location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] = LIVE_CLOBBERED_REG;
-	    }
 
-	  if (  location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] == LIVE_UNCLOBBERED_REG )
-	    {
-	      if (fpRegisters[i].beenClobbered)
-		location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] = LIVE_CLOBBERED_REG;
-	    }
-	}
+            if (  location->actualGPRLiveSet_[ (int) registers[i].number ] == LIVE_UNCLOBBERED_REG )
+            {
+                if (registers[i].beenClobbered)
+                    location->actualGPRLiveSet_[ (int) registers[i].number ] = LIVE_CLOBBERED_REG;
+            }
+        }
+
+        for (u_int i = 0; i < getFPRegisterCount(); i++)
+        {
+            regFPSlot = getFPRegSlot(i);
+
+            if (  location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] == LIVE_REG )
+            {
+                if (!fpRegisters[i].beenClobbered)
+                    location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] = LIVE_UNCLOBBERED_REG;
+                else
+                    location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] = LIVE_CLOBBERED_REG;
+            }
+
+            if (  location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] == LIVE_UNCLOBBERED_REG )
+            {
+                if (fpRegisters[i].beenClobbered)
+                    location->actualFPRLiveSet_[ (int) fpRegisters[i].number ] = LIVE_CLOBBERED_REG;
+            }
+        }
     }
 }
 #endif
@@ -887,10 +954,10 @@ void registerSpace::saveClobberInfo(const instPoint *location)
 
 bool doNotOverflow(int value)
 {
-	assert(0); //Not implemented
-  // we are assuming that we have 15 bits to store the immediate operand.
-  if ( (value <= 32767) && (value >= -32768) ) return(true);
-  else return(false);
+    assert(0); //Not implemented
+    // we are assuming that we have 15 bits to store the immediate operand.
+    if ( (value <= 32767) && (value >= -32768) ) return(true);
+    else return(false);
 }
 
 #if !defined(os_vxworks)
@@ -899,50 +966,50 @@ bool doNotOverflow(int value)
 // specified by entry and base_addr.  If it has been bound, then the callee
 // function is returned in "target_pdf", else it returns false.
 bool PCProcess::hasBeenBound(const SymtabAPI::relocationEntry &entry,
-		func_instance *&target_pdf, Address base_addr)
+        func_instance *&target_pdf, Address base_addr)
 {
-	assert(0); //Not implemented
-	return false;
+    assert(0); //Not implemented
+    return false;
 }
 
 #endif
 
 bool PCProcess::bindPLTEntry(const SymtabAPI::relocationEntry &, Address,
-                           func_instance *, Address) {
-	assert(0); //Not implemented
-   assert(0 && "TODO!");
-   return false;
+        func_instance *, Address) {
+    assert(0); //Not implemented
+    assert(0 && "TODO!");
+    return false;
 }
 void emitLoadPreviousStackFrameRegister(Address register_num,
-                                        Register dest,
-                                        codeGen &gen,
-                                        int /*size*/,
-                                        bool noCost)
+        Register dest,
+        codeGen &gen,
+        int /*size*/,
+        bool noCost)
 {
-	assert(0); //Not implemented
+    assert(0); //Not implemented
 }
 
 void emitStorePreviousStackFrameRegister(Address,
-                                         Register,
-                                         codeGen &,
-                                         int,
-                                         bool) {
+        Register,
+        codeGen &,
+        int,
+        bool) {
     assert(0);
 }
 
 using namespace Dyninst::InstructionAPI;
 bool AddressSpace::getDynamicCallSiteArgs(InstructionAPI::Instruction::Ptr i,
-					  Address addr,
-					  pdvector<AstNodePtr> &args)
+        Address addr,
+        pdvector<AstNodePtr> &args)
 {
-	assert(0); //Not implemented
-	return false;
+    assert(0); //Not implemented
+    return false;
 }
 
 bool writeFunctionPtr(AddressSpace *p, Address addr, func_instance *f)
 {
-	assert(0); //Not implemented
-	return false;
+    assert(0); //Not implemented
+    return false;
 }
 
 Emitter *AddressSpace::getEmitter()
@@ -980,226 +1047,226 @@ Emitter *AddressSpace::getEmitter()
  */
 
 /*
-bool image::updatePltFunc(parse_func *caller_func, Address stub_addr)
-{
-	assert(0); //Not implemented
-    return true;
-}
-*/
+   bool image::updatePltFunc(parse_func *caller_func, Address stub_addr)
+   {
+   assert(0); //Not implemented
+   return true;
+   }
+   */
 
 bool EmitterAARCH64::emitCallRelative(Register dest, Address offset, Register base, codeGen &gen){
-	assert(0); //Not implemented
+    assert(0); //Not implemented
     return true;
 }
 
 bool EmitterAARCH64::emitLoadRelative(Register dest, Address offset, Register base, int size, codeGen &gen){
-	assert(0); //Not implemented
-  return true;
+    assert(0); //Not implemented
+    return true;
 }
 
 
 void EmitterAARCH64::emitStoreRelative(Register source, Address offset, Register base, int size, codeGen &gen){
-  //return true;
-	assert(0); //Not implemented
+    //return true;
+    assert(0); //Not implemented
 }
 
 bool EmitterAARCH64::emitMoveRegToReg(registerSlot *src,
-                                    registerSlot *dest,
-                                    codeGen &gen) {
-	assert(0); //Not implemented
+        registerSlot *dest,
+        codeGen &gen) {
+    assert(0); //Not implemented
     return true;
 }
 
 /*
-bool EmitterAARCH6432Stat::emitPIC(codeGen& gen, Address origAddr, Address relocAddr) {
+   bool EmitterAARCH6432Stat::emitPIC(codeGen& gen, Address origAddr, Address relocAddr) {
 
-      Register scratchPCReg = gen.rs()->getScratchRegister(gen, true);
-      pdvector<Register> excludeReg;
-      excludeReg.push_back(scratchPCReg);
-      Register scratchReg = gen.rs()->getScratchRegister(gen, excludeReg, true);
-      bool newStackFrame = false;
-      int stack_size = 0;
-      int gpr_off, fpr_off, ctr_off;
-      //fprintf(stderr, " emitPIC origAddr 0x%lx reloc 0x%lx Registers PC %d scratch %d \n", origAddr, relocAddr, scratchPCReg, scratchReg);
-      if ((scratchPCReg == REG_NULL) || (scratchReg == REG_NULL)) {
-		//fprintf(stderr, " Creating new stack frame for 0x%lx to 0x%lx \n", origAddr, relocAddr);
+   Register scratchPCReg = gen.rs()->getScratchRegister(gen, true);
+   pdvector<Register> excludeReg;
+   excludeReg.push_back(scratchPCReg);
+   Register scratchReg = gen.rs()->getScratchRegister(gen, excludeReg, true);
+   bool newStackFrame = false;
+   int stack_size = 0;
+   int gpr_off, fpr_off, ctr_off;
+//fprintf(stderr, " emitPIC origAddr 0x%lx reloc 0x%lx Registers PC %d scratch %d \n", origAddr, relocAddr, scratchPCReg, scratchReg);
+if ((scratchPCReg == REG_NULL) || (scratchReg == REG_NULL)) {
+//fprintf(stderr, " Creating new stack frame for 0x%lx to 0x%lx \n", origAddr, relocAddr);
 
-		newStackFrame = true;
-		//create new stack frame
-	        gpr_off = TRAMP_GPR_OFFSET_32;
-	        fpr_off = TRAMP_FPR_OFFSET_32;
-	        ctr_off = STK_CTR_32;
+newStackFrame = true;
+//create new stack frame
+gpr_off = TRAMP_GPR_OFFSET_32;
+fpr_off = TRAMP_FPR_OFFSET_32;
+ctr_off = STK_CTR_32;
 
-		// Make a stack frame.
-	    	pushStack(gen);
+// Make a stack frame.
+pushStack(gen);
 
-    		// Save GPRs
-	      stack_size = saveGPRegisters(gen, gen.rs(), gpr_off, 2);
+// Save GPRs
+stack_size = saveGPRegisters(gen, gen.rs(), gpr_off, 2);
 
-	      scratchPCReg = gen.rs()->getScratchRegister(gen, true);
-	      assert(scratchPCReg != REG_NULL);
-	      excludeReg.clear();
-	      excludeReg.push_back(scratchPCReg);
-	      scratchReg = gen.rs()->getScratchRegister(gen, excludeReg, true);
-	      assert(scratchReg != REG_NULL);
-	      // relocaAddr has moved since we added instructions to setup a new stack frame
-	      relocAddr = relocAddr + ((stack_size + 1)*(gen.width()));
-              //fprintf(stderr, " emitPIC origAddr 0x%lx reloc 0x%lx stack size %d Registers PC %d scratch %d \n", origAddr, relocAddr, stack_size, scratchPCReg, scratchReg);
+scratchPCReg = gen.rs()->getScratchRegister(gen, true);
+assert(scratchPCReg != REG_NULL);
+excludeReg.clear();
+excludeReg.push_back(scratchPCReg);
+scratchReg = gen.rs()->getScratchRegister(gen, excludeReg, true);
+assert(scratchReg != REG_NULL);
+// relocaAddr has moved since we added instructions to setup a new stack frame
+relocAddr = relocAddr + ((stack_size + 1)*(gen.width()));
+//fprintf(stderr, " emitPIC origAddr 0x%lx reloc 0x%lx stack size %d Registers PC %d scratch %d \n", origAddr, relocAddr, stack_size, scratchPCReg, scratchReg);
 
-	}
-	emitMovePCToReg(scratchPCReg, gen);
-	Address varOffset = origAddr - relocAddr;
-	emitCallRelative(scratchReg, varOffset, scratchPCReg, gen);
-      	insnCodeGen::generateMoveToLR(gen, scratchReg);
-	if(newStackFrame) {
-	      // GPRs
-	      restoreGPRegisters(gen, gen.rs(), gpr_off);
-	      popStack(gen);
-	}
+}
+emitMovePCToReg(scratchPCReg, gen);
+Address varOffset = origAddr - relocAddr;
+emitCallRelative(scratchReg, varOffset, scratchPCReg, gen);
+insnCodeGen::generateMoveToLR(gen, scratchReg);
+if(newStackFrame) {
+// GPRs
+restoreGPRegisters(gen, gen.rs(), gpr_off);
+popStack(gen);
+}
 
-      return 0;
+return 0;
 }
 
 bool EmitterAARCH64Stat::emitPIC(codeGen& gen, Address origAddr, Address relocAddr) {
-	assert(0);
-	return false;
+assert(0);
+return false;
 }
 bool EmitterAARCH64Dyn::emitPIC(codeGen &gen, Address origAddr, Address relocAddr) {
 
-	Address origRet = origAddr + 4;
-	Register scratch = gen.rs()->getScratchRegister(gen, true);
-	assert(scratch != REG_NULL);
-	instruction::loadImmIntoReg(gen, scratch, origRet);
-	insnCodeGen::generateMoveToLR(gen, scratch);
-	return true;
+Address origRet = origAddr + 4;
+Register scratch = gen.rs()->getScratchRegister(gen, true);
+assert(scratch != REG_NULL);
+instruction::loadImmIntoReg(gen, scratch, origRet);
+insnCodeGen::generateMoveToLR(gen, scratch);
+return true;
 
 }
 */
 
 bool EmitterAARCH64Stat::emitPLTCommon(func_instance *callee, bool call, codeGen &gen) {
-	assert(0); //Not implemented
-  return true;
+    assert(0); //Not implemented
+    return true;
 }
 
 #if 0
 bool EmitterAARCH64Stat::emitPLTCommon(func_instance *callee, bool call, codeGen &gen) {
-  // In PPC64 Linux, function descriptors are used in place of direct
-  // function pointers.  The descriptors have the following layout:
-  //
-  // Function Descriptor --> + 0: <Function Text Address>
-  //                         + 8: <TOC Pointer Value>
-  //                         +16: <Environment Pointer [Optional]>
-  //
-  // Additionally, this should be able to stomp on the link register (LR)
-  // and TOC register (r2), as they were saved by Emitter::emitCall() if
-  // necessary.
-  //
-  // So here's a brief sketch of the code this function generates:
-  //
-  //   Set up new branch target in LR from function descriptor
-  //   Set up new TOC in R2 from function descriptor + 8
-  //   Call
-  bool isStaticBinary = false;
+    // In PPC64 Linux, function descriptors are used in place of direct
+    // function pointers.  The descriptors have the following layout:
+    //
+    // Function Descriptor --> + 0: <Function Text Address>
+    //                         + 8: <TOC Pointer Value>
+    //                         +16: <Environment Pointer [Optional]>
+    //
+    // Additionally, this should be able to stomp on the link register (LR)
+    // and TOC register (r2), as they were saved by Emitter::emitCall() if
+    // necessary.
+    //
+    // So here's a brief sketch of the code this function generates:
+    //
+    //   Set up new branch target in LR from function descriptor
+    //   Set up new TOC in R2 from function descriptor + 8
+    //   Call
+    bool isStaticBinary = false;
 
-  if(gen.addrSpace()->edit()->getMappedObject()->parse_img()->getObject()->isStaticBinary()) {
-    isStaticBinary = true;
-  }
+    if(gen.addrSpace()->edit()->getMappedObject()->parse_img()->getObject()->isStaticBinary()) {
+        isStaticBinary = true;
+    }
 
-  const unsigned TOCreg = 2;
-  const unsigned wordsize = gen.width();
-  assert(wordsize == 8);
-  Address dest = getInterModuleFuncAddr(callee, gen);
-  Address caller_toc = 0;
-  Address toc_anchor = gen.addrSpace()->getTOCoffsetInfo(callee);
-  // Instead of saving the TOC (if we can't), just reset it afterwards.
-  if (gen.func()) {
-    caller_toc = gen.addrSpace()->getTOCoffsetInfo(gen.func());
-  }
-  else if (gen.point()) {
-    caller_toc = gen.addrSpace()->getTOCoffsetInfo(gen.point()->func());
-  }
-  else {
-    // Don't need it, and this might be an iRPC
-  }
+    const unsigned TOCreg = 2;
+    const unsigned wordsize = gen.width();
+    assert(wordsize == 8);
+    Address dest = getInterModuleFuncAddr(callee, gen);
+    Address caller_toc = 0;
+    Address toc_anchor = gen.addrSpace()->getTOCoffsetInfo(callee);
+    // Instead of saving the TOC (if we can't), just reset it afterwards.
+    if (gen.func()) {
+        caller_toc = gen.addrSpace()->getTOCoffsetInfo(gen.func());
+    }
+    else if (gen.point()) {
+        caller_toc = gen.addrSpace()->getTOCoffsetInfo(gen.point()->func());
+    }
+    else {
+        // Don't need it, and this might be an iRPC
+    }
 
-  if(isStaticBinary)
-    caller_toc = 0;
+    if(isStaticBinary)
+        caller_toc = 0;
 
-  //Offset destOff = dest - gen.currAddr();
-  Offset destOff = dest - caller_toc;
+    //Offset destOff = dest - gen.currAddr();
+    Offset destOff = dest - caller_toc;
 
-  //    insnCodeGen::loadPartialImmIntoReg(gen, TOCreg, destOff);
-  // Broken to see if any of this generates intellible code.
+    //    insnCodeGen::loadPartialImmIntoReg(gen, TOCreg, destOff);
+    // Broken to see if any of this generates intellible code.
 
-  Register scratchReg = 3; // = gen.rs()->getScratchRegister(gen, true);
-  int stackSize = 0;
-  if (scratchReg == REG_NULL) {
-    pdvector<Register> freeReg;
-    pdvector<Register> excludeReg;
-    stackSize = insnCodeGen::createStackFrame(gen, 1, freeReg, excludeReg);
-    assert (stackSize == 1);
-    scratchReg = freeReg[0];
-  }
-  insnCodeGen::loadImmIntoReg(gen, scratchReg, destOff);
+    Register scratchReg = 3; // = gen.rs()->getScratchRegister(gen, true);
+    int stackSize = 0;
+    if (scratchReg == REG_NULL) {
+        pdvector<Register> freeReg;
+        pdvector<Register> excludeReg;
+        stackSize = insnCodeGen::createStackFrame(gen, 1, freeReg, excludeReg);
+        assert (stackSize == 1);
+        scratchReg = freeReg[0];
+    }
+    insnCodeGen::loadImmIntoReg(gen, scratchReg, destOff);
 
-  if(!isStaticBinary) {
-    insnCodeGen::generateLoadReg64(gen, scratchReg, scratchReg, TOCreg);
+    if(!isStaticBinary) {
+        insnCodeGen::generateLoadReg64(gen, scratchReg, scratchReg, TOCreg);
 
+        insnCodeGen::generateMemAccess64(gen, LDop, LDxop,
+                TOCreg, scratchReg, 8);
+    }
     insnCodeGen::generateMemAccess64(gen, LDop, LDxop,
-				     TOCreg, scratchReg, 8);
-  }
-  insnCodeGen::generateMemAccess64(gen, LDop, LDxop,
-				   scratchReg, scratchReg, 0);
+            scratchReg, scratchReg, 0);
 
-  insnCodeGen::generateMoveToCR(gen, scratchReg);
+    insnCodeGen::generateMoveToCR(gen, scratchReg);
 
-  if (stackSize > 0)
-    insnCodeGen::removeStackFrame(gen);
+    if (stackSize > 0)
+        insnCodeGen::removeStackFrame(gen);
 
 
-  instruction branch_insn(call ? BCTRLraw : BCTRraw);
-  insnCodeGen::generate(gen, branch_insn);
+    instruction branch_insn(call ? BCTRLraw : BCTRraw);
+    insnCodeGen::generate(gen, branch_insn);
 
-  return true;
+    return true;
 }
 #endif
 
 bool EmitterAARCH64Dyn::emitTOCCommon(block_instance *block, bool call, codeGen &gen) {
-	assert(0); //Not implemented
-  return true;
+    assert(0); //Not implemented
+    return true;
 }
 
 // TODO 32/64-bit?
 bool EmitterAARCH64Stat::emitPLTCall(func_instance *callee, codeGen &gen) {
-	assert(0); //Not implemented
-  return emitPLTCommon(callee, true, gen);
+    assert(0); //Not implemented
+    return emitPLTCommon(callee, true, gen);
 }
 
 bool EmitterAARCH64Stat::emitPLTJump(func_instance *callee, codeGen &gen) {
-	assert(0); //Not implemented
-  return emitPLTCommon(callee, false, gen);
+    assert(0); //Not implemented
+    return emitPLTCommon(callee, false, gen);
 }
 
 bool EmitterAARCH64Stat::emitTOCCall(block_instance *block, codeGen &gen) {
-	assert(0); //Not implemented
-  return emitTOCCommon(block, true, gen);
+    assert(0); //Not implemented
+    return emitTOCCommon(block, true, gen);
 }
 
 bool EmitterAARCH64Stat::emitTOCJump(block_instance *block, codeGen &gen) {
-	assert(0); //Not implemented
-  return emitTOCCommon(block, false, gen);
+    assert(0); //Not implemented
+    return emitTOCCommon(block, false, gen);
 }
 
 bool EmitterAARCH64Stat::emitTOCCommon(block_instance *block, bool call, codeGen &gen) {
-	assert(0); //Not implemented
-  return false;
+    assert(0); //Not implemented
+    return false;
 }
 
 bool EmitterAARCH64Stat::emitCallInstruction(codeGen &gen,
-                                             func_instance *callee,
-                                             bool setTOC, Address) {
-	assert(0); //Not implemented
-	return true;
+        func_instance *callee,
+        bool setTOC, Address) {
+    assert(0); //Not implemented
+    return true;
 }
 
 // Generates call instruction sequence for all AARCH64-based systems
@@ -1208,25 +1275,25 @@ bool EmitterAARCH64Stat::emitCallInstruction(codeGen &gen,
 // This should be able to stomp on the link register (LR) and TOC
 // register (r2), as they were saved by Emitter::emitCall() as necessary.
 bool EmitterAARCH64::emitCallInstruction(codeGen &gen, func_instance *callee, bool setTOC, Address toc_anchor) {
-	assert(0); //Not implemented
+    assert(0); //Not implemented
     return true;
 }
 
 void EmitterAARCH64::emitLoadShared(opCode op, Register dest, const image_variable* var, bool is_local, int size, codeGen &gen, Address offset)
 {
-	assert(0); //Not implemented
-  return;
+    assert(0); //Not implemented
+    return;
 }
 
 void EmitterAARCH64::emitStoreShared(Register source, const image_variable * var, bool is_local, int size, codeGen & gen)
 {
-	assert(0); //Not implemented
-  return;
+    assert(0); //Not implemented
+    return;
 }
 
 Address Emitter::getInterModuleVarAddr(const image_variable *var, codeGen& gen)
 {
-	assert(0); //Not implemented
+    assert(0); //Not implemented
     AddressSpace *addrSpace = gen.addrSpace();
     if (!addrSpace)
         assert(0 && "No AddressSpace associated with codeGen object");
@@ -1238,14 +1305,14 @@ Address Emitter::getInterModuleVarAddr(const image_variable *var, codeGen& gen)
 
 Address EmitterAARCH64::emitMovePCToReg(Register dest, codeGen &gen)
 {
-	assert(0); //Not implemented
-   insnCodeGen::generateBranch(gen, gen.currAddr(),  gen.currAddr()+4, true); // blrl
-	 Address ret = gen.currAddr();
-	 return ret;
+    assert(0); //Not implemented
+    insnCodeGen::generateBranch(gen, gen.currAddr(),  gen.currAddr()+4, true); // blrl
+    Address ret = gen.currAddr();
+    return ret;
 }
 
 Address Emitter::getInterModuleFuncAddr(func_instance *func, codeGen& gen)
 {
-	assert(0); //Not implemented
+    assert(0); //Not implemented
     return NULL;
 }
