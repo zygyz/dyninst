@@ -422,7 +422,7 @@ unsigned restoreSPRegisters(codeGen &gen,
 bool baseTramp::generateSaves(codeGen &gen,
                               registerSpace *)
 {
-    return true;
+    return gen.codeEmitter()->emitBTSaves(this, gen);
 }
 
 bool baseTramp::generateRestores(codeGen &gen,
@@ -498,7 +498,7 @@ Register EmitterAARCH64::emitCallReplacement(opCode ocode,
 // Instrumentation vs function call replacement
 // Static vs. dynamic
 
-static Register aarch64_arg_regs[] = { aarch64::x0 };
+static Register aarch64_arg_regs[] = { aarch64::x0, aarch64::x1, aarch64::x2, aarch64::x3, aarch64::x4, aarch64::x5, aarch64::x6, aarch64::x7 };
 #define AARCH64_ARG_REGS (sizeof(aarch64_arg_regs) / sizeof(Register))
 Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNodePtr> &operands,
                                 bool noCost, func_instance *callee)
@@ -534,10 +534,12 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
          }
       }
    }
+    return Register(0);
 }
 
 bool EmitterAARCH64::emitBTSaves(baseTramp*, codeGen &) {
- return true;
+    assert(0);
+    return true;
 }
 
 codeBufIndex_t emitA(opCode op, Register src1, Register /*src2*/, long dest,
