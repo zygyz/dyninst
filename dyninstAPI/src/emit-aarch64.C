@@ -114,10 +114,11 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
                 // And now that it's saved, nuke it
                 reg->refCount = 0;
                 reg->keptValue = false;
+            } else {
+                if (regsClobberedByCall.test(live.getIndex(regToMachReg64.equal_range(r).first->second))) {
+                    gen.markRegDefined(r);
+                }
             }
-            //if (regsClobberedByCall.test(live.getIndex(regToMachReg64.equal_range(r).first->second))) {
-            //     gen.markRegDefined(r);
-            //}
         }
     }
 

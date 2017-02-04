@@ -456,6 +456,7 @@ bool baseTramp::generateRestores(codeGen &gen,
 void emitImm(opCode op, Register src1, RegValue src2imm, Register dest,
         codeGen &gen, bool noCost, registerSpace * /* rs */)
 {
+    assert(0);
 }
 
 void cleanUpAndExit(int status);
@@ -497,6 +498,7 @@ bool EmitterAARCH64::clobberAllFuncCall( registerSpace *rs,
 //
 
 Register emitFuncCall(opCode, codeGen &, pdvector<AstNodePtr> &, bool, Address) {
+    assert(0);
     return 0;
 }
 
@@ -510,6 +512,7 @@ Register EmitterAARCH64::emitCallReplacement(opCode ocode,
         codeGen &gen,
         bool /* noCost */,
         func_instance *callee) {
+    assert(0);
     return 0;
 }
 
@@ -671,6 +674,7 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
 codeBufIndex_t emitA(opCode op, Register src1, Register /*src2*/, long dest,
         codeGen &gen, RegControl, bool /*noCost*/)
 {
+    assert(0);
     return NULL;
 }
 
@@ -678,12 +682,13 @@ Register emitR(opCode op, Register src1, Register src2, Register dest,
         codeGen &gen, bool /*noCost*/,
         const instPoint * /*location*/, bool /*for_MT*/)
 {
-
+    assert(0);
     return REG_NULL;
 }
 
 void emitJmpMC(int /*condition*/, int /*offset*/, codeGen &)
 {
+    assert(0);
     // Not needed for memory instrumentation, otherwise TBD
 }
 
@@ -692,6 +697,7 @@ void emitJmpMC(int /*condition*/, int /*offset*/, codeGen &)
 // VG(03/15/02): Sync'd with the new AIX tramp
 static inline bool needsRestore(Register x)
 {
+    assert(0);
     return false;
 }
 
@@ -699,17 +705,20 @@ static inline bool needsRestore(Register x)
 static inline void restoreGPRtoGPR(codeGen &gen,
         Register reg, Register dest)
 {
+    assert(0);
 }
 
 // VG(03/15/02): Restore mutatee value of XER to dest GPR
 static inline void restoreXERtoGPR(codeGen &gen, Register dest)
 {
+    assert(0);
 }
 
 // VG(03/15/02): Move bits 25:31 of GPR reg to GPR dest
 static inline void moveGPR2531toGPR(codeGen &gen,
         Register reg, Register dest)
 {
+    assert(0);
 }
 
 // VG(11/16/01): Emit code to add the original value of a register to
@@ -718,6 +727,7 @@ static inline void moveGPR2531toGPR(codeGen &gen,
 static inline void emitAddOriginal(Register src, Register acc,
         codeGen &gen, bool noCost)
 {
+    assert(0);
 }
 
 // VG(11/07/01): Load in destination the effective address given
@@ -726,11 +736,13 @@ void emitASload(const BPatch_addrSpec_NP *as, Register dest, int stackShift,
         codeGen &gen,
         bool noCost)
 {
+    assert(0);
 }
 
 void emitCSload(const BPatch_addrSpec_NP *as, Register dest, codeGen &gen,
         bool noCost)
 {
+    assert(0);
 }
 
 void emitVload(opCode op, Address src1, Register src2, Register dest,
@@ -738,6 +750,7 @@ void emitVload(opCode op, Address src1, Register src2, Register dest,
         registerSpace * /*rs*/, int size,
         const instPoint * /* location */, AddressSpace *proc)
 {
+    assert(0);
 }
 
 void emitVstore(opCode op, Register src1, Register /*src2*/, Address dest,
@@ -745,6 +758,7 @@ void emitVstore(opCode op, Register src1, Register /*src2*/, Address dest,
         registerSpace * /* rs */, int size,
         const instPoint * /* location */, AddressSpace *proc)
 {
+    assert(0);
     return;
 }
 
