@@ -750,7 +750,12 @@ void emitVload(opCode op, Address src1, Register src2, Register dest,
         registerSpace * /*rs*/, int size,
         const instPoint * /* location */, AddressSpace *proc)
 {
-    assert(0);
+    switch(op) {
+        case loadConstOp: {
+            std::cout << op << std::endl;
+        }
+        default: assert(0);
+    }
 }
 
 void emitVstore(opCode op, Register src1, Register /*src2*/, Address dest,
