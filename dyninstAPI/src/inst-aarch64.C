@@ -961,13 +961,6 @@ void EmitterAARCH64::emitStoreRelative(Register source, Address offset, Register
     assert(0); //Not implemented
 }
 
-bool EmitterAARCH64::emitMoveRegToReg(registerSlot *src,
-        registerSlot *dest,
-        codeGen &gen) {
-    assert(0); //Not implemented
-    return true;
-}
-
 /*
    bool EmitterAARCH6432Stat::emitPIC(codeGen& gen, Address origAddr, Address relocAddr) {
 

@@ -50,9 +50,9 @@ class EmitterAARCH64 : public Emitter {
  public:
     virtual ~EmitterAARCH64() {};
     virtual codeBufIndex_t emitIf(Register, Register, RegControl, codeGen &) { assert(0); return 0; }
-    virtual void emitOp(unsigned, Register, Register, Register, codeGen &) { assert(0); }
+    virtual void emitOp(unsigned, Register, Register, Register, codeGen &);
     virtual void emitOpImm(unsigned, unsigned, Register, Register, RegValue,
-			   codeGen &) { assert(0); }
+			   codeGen &);
     virtual void emitRelOp(unsigned, Register, Register, Register, codeGen &) { assert(0); }
     virtual void emitRelOpImm(unsigned, Register, Register, RegValue, codeGen &) { assert(0); }
     virtual void emitDiv(Register, Register, Register, codeGen &) { assert(0); }
@@ -80,7 +80,7 @@ class EmitterAARCH64 : public Emitter {
 
     virtual void emitStoreOrigRegister(Address, Register, codeGen &) { assert(0); }
 
-    virtual bool emitMoveRegToReg(Register, Register, codeGen &) { assert(0); return 0;}
+    virtual bool emitMoveRegToReg(Register, Register, codeGen &);
     virtual bool emitMoveRegToReg(registerSlot *src, registerSlot *dest, codeGen &gen);
 
     virtual Address emitMovePCToReg(Register, codeGen& gen);

@@ -54,7 +54,7 @@
 
 
 
-static Register aarch64_arg_regs[] = { aarch64::x0, aarch64::x1, aarch64::x2, aarch64::x3, aarch64::x4, aarch64::x5, aarch64::x6, aarch64::x7  };
+static Register aarch64_arg_regs[] = { registerSpace::r0, registerSpace::r1, registerSpace::r2, registerSpace::r3, registerSpace::r4, registerSpace::r5, registerSpace::r6, registerSpace::r7  };
 #define AARCH64_ARG_REGS (sizeof(aarch64_arg_regs) / sizeof(Register))
 Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNodePtr> &operands,
         bool noCost, func_instance *callee)
@@ -139,9 +139,6 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
             else {
                 cerr << "Error: tried to allocate register " << aarch64_arg_regs[u] << " and failed!" << endl;
                 assert(0);
-
-
-
             }
             gen.markRegDefined(reg);
             if (!operands[u]->generateCode_phase2(gen, noCost, unused, reg))
@@ -158,4 +155,24 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
 
     return ret;
 
+}
+
+bool EmitterAARCH64::emitMoveRegToReg(Register src, Register dest, codeGen &gen) {
+    assert(0);
+    return true;
+}
+
+bool EmitterAARCH64::emitMoveRegToReg(registerSlot *source, registerSlot *dest, codeGen &gen) {
+    return emitMoveRegToReg(source->encoding(), dest->encoding(), gen);
+}
+
+void EmitterAARCH64::emitOp(unsigned opcode, Register dest, Register src1, Register src2, codeGen &gen)
+{
+    assert(0);
+}
+
+void EmitterAARCH64::emitOpImm(unsigned opcode1, unsigned opcode2, Register dest, Register src1, RegValue src2imm,
+                          codeGen &gen)
+{
+    assert(0);
 }
