@@ -93,7 +93,8 @@ void insnCodeGen::generateBranch(codeGen &gen, long disp, bool link) {
     }
 
     instruction insn;
-    INSN_SET(insn, 26, 30, Bop);
+    INSN_SET(insn, 26, 30, BOp);
+    //Set the displacement immediate
     INSN_SET(insn, 0, 25, disp >> 2);
 
     //Bit 31 is set if it's a branch-and-link (essentially, a call), unset if it's just a branch
@@ -118,12 +119,6 @@ void insnCodeGen::generateBranch(codeGen &gen, Address from, Address to, bool li
 
 void insnCodeGen::generateCall(codeGen &gen, Address from, Address to) {
     generateBranch(gen, from, to, true);
-}
-
-void insnCodeGen::generateInterFunctionBranch(codeGen &gen,
-                                              Address from,
-                                              Address to,
-                                              bool link) {
 }
 
 void insnCodeGen::generateLongBranch(codeGen &gen,
@@ -404,34 +399,56 @@ void insnCodeGen::generateMoveToCR(codeGen &gen, Register rs) {
 }
 
 bool insnCodeGen::modifyJump(Address target,
-			     NS_aarch64::instruction &insn,
-			     codeGen &gen) {
+                             NS_aarch64::instruction &insn,
+                             codeGen &gen) {
+    long disp = target - gen.currAddr();
+    if (ABS(disp) > MAX_BRANCH_OFFSET) {
+        generateBranchViaTrap(gen, gen.currAddr(), target, INSN_GET_ISCALL(insn));
+        return true;
+    }
 
-//#warning "This function is not implemented yet!"
-  return true;
+    generateBranch(gen,
+                   gen.currAddr(),
+                   target,
+                   INSN_GET_ISCALL(insn));
+    return true;
 }
 
 bool insnCodeGen::modifyJcc(Address target,
 			    NS_aarch64::instruction &insn,
 			    codeGen &gen) {
+    long disp = target - gen.currAddr();
 
-//#warning "This function is not implemented yet!"
-  return false;
+    if(ABS(disp) > MAX_CBRANCH_OFFSET) {
+        //TODO
+    } else {
+        instruction condBranchInsn(insn);
+
+        //Bit 4 for the conditional branch instruction is 0
+        INSN_SET(condBranchInsn, 4, 4, 0);
+        INSN_SET(condBranchInsn, 24, 31, BCondOp);
+        //Set the displacement immediate
+        INSN_SET(condBranchInsn, 5, 23, disp >> 2);
+
+        generate(gen, condBranchInsn);
+    }
+
+    return true;
 }
 
 bool insnCodeGen::modifyCall(Address target,
-			     NS_aarch64::instruction &insn,
-			     codeGen &gen) {
-
-//#warning "This function is not implemented yet!"
-    return false;
+                             NS_aarch64::instruction &insn,
+                             codeGen &gen) {
+    if (insn.isUncondBranch())
+        return modifyJump(target, insn, gen);
+    else
+        return modifyJcc(target, insn, gen);
 }
 
 bool insnCodeGen::modifyData(Address target,
-			     NS_aarch64::instruction &insn,
-			     codeGen &gen) {
-
-//#warning "This function is not implemented yet!"
-  return false;
+                             NS_aarch64::instruction &insn,
+                             codeGen &gen) {
+    //nothing to do for and not applicable to ARM
+    return false;
 }
 
