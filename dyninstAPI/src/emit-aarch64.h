@@ -69,9 +69,9 @@ class EmitterAARCH64 : public Emitter {
     // These implicitly use the stored original/non-inst value
     virtual void emitLoadOrigFrameRelative(Register, Address, codeGen &) { assert(0); }
     virtual void emitLoadOrigRegRelative(Register, Address, Register, codeGen &, bool) { assert(0); }
-    virtual void emitLoadOrigRegister(Address, Register, codeGen &) { assert(0); }
+    virtual void emitLoadOrigRegister(Address, Register, codeGen &);
 
-    virtual void emitStore(Address, Register, int, codeGen &) { assert(0); }
+    virtual void emitStore(Address, Register, int, codeGen &);
     virtual void emitStoreIndir(Register, Register, int, codeGen &) { assert(0); }
     virtual void emitStoreFrameRelative(Address, Register, Register, int, codeGen &) { assert(0); }
     virtual void emitStoreRelative(Register, Address, Register, int, codeGen &);
@@ -92,7 +92,7 @@ class EmitterAARCH64 : public Emitter {
 
     virtual void emitGetRetVal(Register, bool, codeGen &) { assert(0); }
     virtual void emitGetRetAddr(Register, codeGen &) { assert(0); }
-    virtual void emitGetParam(Register, Register, instPoint::Type, opCode, bool, codeGen &) { assert(0); }
+    virtual void emitGetParam(Register, Register, instPoint::Type, opCode, bool, codeGen &);
     virtual void emitASload(int, int, int, long, Register, int, codeGen &) { assert(0); }
     virtual void emitCSload(int, int, int, long, Register, codeGen &) { assert(0); }
     virtual void emitPushFlags(codeGen &) { assert(0); }
@@ -104,7 +104,7 @@ class EmitterAARCH64 : public Emitter {
     virtual void emitStoreImm(Address, int, codeGen &, bool) { assert(0); }
     virtual void emitAddSignedImm(Address, int, codeGen &, bool) { assert(0); }
     virtual int Register_DWARFtoMachineEnc(int) { assert(0); return 0;}
-    virtual bool emitPush(codeGen &, Register) { assert(0); return true;}
+    virtual bool emitPush(codeGen &, Register);
     virtual bool emitPop(codeGen &, Register) { assert(0); return true;}
     virtual bool emitAdjustStackPointer(int, codeGen &) { assert(0); return true;}
     
@@ -116,6 +116,8 @@ class EmitterAARCH64 : public Emitter {
     virtual Register emitCallReplacement(opCode, codeGen &, bool,
                                          func_instance *);
 };
+
+void emitPushReg64(Register src, codeGen &gen);
 
 class EmitterAARCH64Dyn : public EmitterAARCH64
 {

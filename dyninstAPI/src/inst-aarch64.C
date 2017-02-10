@@ -126,27 +126,6 @@ void saveSPR(codeGen &gen,     //Instruction storage pointer
 
 }
 
-bool shouldSaveReg(registerSlot *reg, baseTramp *inst, bool saveFlags)
-{
-
-    if (inst->point()) {
-        regalloc_printf("\t shouldSaveReg for BT %p, from 0x%lx\n", inst, inst->point()->insnAddr() );
-    } else {
-        regalloc_printf("\t shouldSaveReg for iRPC\n");
-    }
-    if (reg->liveState != registerSlot::live) {
-        regalloc_printf("\t Reg %d not live, concluding don't save\n", reg->number);
-        return false;
-    }
-    if (saveFlags) {
-    }
-    if (inst && inst->validOptimizationInfo() && !inst->definedRegs[reg->encoding()]) {
-        regalloc_printf("\t Base tramp instance doesn't have reg %d (num %d) defined; concluding don't save\n",
-                reg->encoding(), reg->number);
-        return false;
-    }
-    return true;
-}
 ////////////////////////////////////////////////////////////////////
 //Generates instructions to restore a special purpose register from
 //the stack.
@@ -516,161 +495,6 @@ Register EmitterAARCH64::emitCallReplacement(opCode ocode,
     return 0;
 }
 
-bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
-
-    gen.setInInstrumentation(true);
-
-    int instFrameSize = 0;
-    int funcJumpSlotSize = 0;
-    if (bt) {
-        funcJumpSlotSize = bt->funcJumpSlotSize() * 4;
-    }
-
-    bool useFPRs =  BPatch::bpatch->isForceSaveFPROn() ||
-        ( BPatch::bpatch->isSaveFPROn()      &&
-          gen.rs()->anyLiveFPRsAtEntry()     &&
-          bt->saveFPRs() &&
-          bt->makesCall() );
-    bool alignStack = useFPRs || !bt || bt->checkForFuncCalls();
-    bool saveFlags = false; // gen.rs()->checkVolatileRegisters(gen, registerSlot::live);
-    bool createFrame = !bt || bt->needsFrame() || useFPRs || bt->makesCall();
-    bool saveOrigAddr = createFrame && bt->instP();
-
-    int num_saved = 0;
-    int num_to_save = 0;
-    // Calculate the number of registers we'll save
-#if 1
-    std::cout << "creatFrame " << createFrame << std::endl;
-    assert(gen.rs()->numGPRs() == 31);
-#endif
-    for (int i = 0; i < gen.rs()->numGPRs(); i++) {
-        registerSlot *reg = gen.rs()->GPRs()[i];
-        if (!shouldSaveReg(reg, bt, saveFlags))
-            continue;
-        if (createFrame && reg->encoding() == aarch64::FPR)
-            continue;
-        num_to_save++;
-    }
-    if (createFrame) {
-        num_to_save++; 
-    }
-    if (saveOrigAddr) {
-        num_to_save++;
-    }
-    if (saveFlags) {
-        num_to_save++;
-    }
-
-    // Save the live ones
-    for (int i = 0; i < gen.rs()->numGPRs(); i++) {
-        registerSlot *reg = gen.rs()->GPRs()[i];
-
-        if (!shouldSaveReg(reg, bt, saveFlags))
-            continue;
-        if (createFrame && reg->encoding() == aarch64::FPR)
-            continue;
-        //emitPushReg64(reg->encoding(),gen);
-        // We move the FP down to just under here, so we're actually
-        // measuring _up_ from the FP.
-        num_saved++;
-        gen.rs()->markSavedRegister(reg->encoding(), num_to_save-num_saved);
-    }
-
-    bool flags_saved = gen.rs()->saveVolatileRegisters(gen);
-    bool localSpace = createFrame || useFPRs || 
-        (bt && bt->validOptimizationInfo() && bt->spilledRegisters);
-
-    if (bt) {
-        bt->savedFPRs = useFPRs;
-        bt->createdFrame = createFrame;
-        bt->savedOrigAddr = saveOrigAddr;
-        bt->createdLocalSpace = localSpace;
-        bt->alignedStack = alignStack;
-        bt->savedFlags = flags_saved;
-    }
-
-    int flags_saved_i = flags_saved ? 1 : 0;
-    int base_i = (saveOrigAddr ? 1 : 0) + (createFrame ? 1 : 0);
-
-    int numRegsUsed = bt ? bt->numDefinedRegs() : -1;
-    if (numRegsUsed == -1 ||
-            numRegsUsed > X86_REGS_SAVE_LIMIT)
-    {
-        //emitSimpleInsn(PUSHAD, gen);
-        gen.rs()->incStack(8 * 4);
-        num_saved = 8;
-
-        //gen.rs()->markSavedRegister(RealRegister(aarch64:x0), 7 + flags_saved_i + base_i);
-        if(flags_saved)
-        {
-            //gen.rs()->markSavedRegister(IA32_FLAG_VIRTUAL_REGISTER, 7 + base_i);
-        }
-        //gen.rs()->markSavedRegister(RealRegister(REGNUM_ECX), 6 + base_i);
-        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EDX), 5 + base_i);
-        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EBX), 4 + base_i);
-        //gen.rs()->markSavedRegister(RealRegister(REGNUM_ESP), 3 + base_i);
-        //if (!createFrame)
-        //   gen.rs()->markSavedRegister(RealRegister(REGNUM_EBP), 2 + base_i);
-        //gen.rs()->markSavedRegister(RealRegister(REGNUM_ESI), 1 + base_i);
-        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EDI), 0 + base_i);
-    }
-    else
-    {
-        pdvector<registerSlot *> &regs = gen.rs()->trampRegs();
-        for (unsigned i=0; i<regs.size(); i++) {
-            registerSlot *reg = regs[i];
-            if (bt->definedRegs[reg->encoding()]) {
-                //::emitPush(RealRegister(reg->encoding()), gen);
-                num_saved++;
-            }
-        }
-        assert(num_saved == numRegsUsed);
-    }
-
-    if (saveOrigAddr) {
-        //emitPushImm(bt->instP()->addr_compat(), gen);
-    }
-    if (createFrame)
-    {
-        // For now, we'll do all saves then do the guard. Could inline
-        //        // Return addr for stack frame walking; for lack of a better idea,
-        // we grab the original instPoint address
-        //emitSimpleInsn(PUSH_EBP, gen);
-        gen.rs()->incStack(4);
-        //emitMovRegToReg(RealRegister(REGNUM_EBP), RealRegister(REGNUM_ESP), gen);
-        //gen.rs()->markSavedRegister(RealRegister(REGNUM_EBP), 0);
-    }
-
-    // Not sure liveness touches this yet, so not using
-    //bool liveFPRs = (gen.rs()->FPRs()[0]->liveState == registerSlot:live);
-
-    // Prepare our stack bookkeeping data structures.
-    instFrameSize += (flags_saved_i + num_saved + base_i) * 4;
-    if (bt) {
-        bt->stackHeight = instFrameSize;
-    }
-    //gen.rs()->setInstFrameSize(instFrameSize);
-    //gen.rs()->setStackHeight(0);
-
-    // Pre-calculate space for temporaries and floating-point state.
-    int extra_space = 0;
-    if (useFPRs) {
-        //extra_space += TRAMP_FRAME_SIZE + FSAVE_STATE_SIZE;
-    } else if (localSpace) {
-        //extra_space += TRAMP_FRAME_SIZE;
-    }
-
-    // Make sure that we're still aligned when we add extra_space to the stack.
-    if (alignStack) {
-    }
-
-    if (useFPRs) {
-        //emitOpRegRM(FSAVE, RealRegister(FSAVE_OP), RealRegister(REGNUM_ESP), 0, gen);
-    }
-    //assert(0);
-    return true;
-}
-
 codeBufIndex_t emitA(opCode op, Register src1, Register /*src2*/, long dest,
         codeGen &gen, RegControl, bool /*noCost*/)
 {
@@ -679,11 +503,44 @@ codeBufIndex_t emitA(opCode op, Register src1, Register /*src2*/, long dest,
 }
 
 Register emitR(opCode op, Register src1, Register src2, Register dest,
-        codeGen &gen, bool /*noCost*/,
-        const instPoint * /*location*/, bool /*for_MT*/)
+        codeGen &gen, bool noCost,
+        const instPoint * location, bool /*for_MT*/)
 {
-    assert(0);
-    return REG_NULL;
+    bool get_addr_of = (src2 != Null_Register);
+    switch (op) {
+            case getRetValOp:
+            // dest is a register where we can store the value
+              // the return value is in the saved EAX
+              gen.codeEmitter()->emitGetRetVal(dest, get_addr_of, gen);
+              if (!get_addr_of)
+                 return dest;
+              break;
+           case getRetAddrOp:
+              // dest is a register where we can store the return address
+              gen.codeEmitter()->emitGetRetAddr(dest, gen);
+              return dest;
+              break;
+           case getParamOp:
+           case getParamAtCallOp:
+           case getParamAtEntryOp:
+              // src1 is the number of the argument
+              // dest is a register where we can store the value
+              gen.codeEmitter()->emitGetParam(dest, src1, location->type(), op,
+                                              get_addr_of, gen);
+              if (!get_addr_of)
+                 return dest;
+              break;
+           case loadRegOp:
+              assert(src1 == 0);
+              assert(0);
+              return dest;
+           default:
+              abort();                  // unexpected op for this emit!
+        }
+        assert(get_addr_of);
+        emitV(storeIndirOp, src2, 0, dest, gen, noCost, gen.rs(),
+              gen.addrSpace()->getAddressWidth(), gen.point(), gen.addrSpace());
+        return(dest);
 }
 
 void emitJmpMC(int /*condition*/, int /*offset*/, codeGen &)
@@ -752,7 +609,8 @@ void emitVload(opCode op, Address src1, Register src2, Register dest,
 {
     switch(op) {
         case loadConstOp: {
-            std::cout << op << std::endl;
+            insnCodeGen::loadImmIntoReg(gen, dest, (long)src1);
+            break;
         }
         default: assert(0);
     }

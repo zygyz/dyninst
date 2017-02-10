@@ -51,8 +51,14 @@
 #include "liveness.h"
 #include "RegisterConversion.h"
 
-
-
+void emitPushReg64(Register src, codeGen &gen) {
+    //emitPush(gen, src);
+    GET_PTR(insn, gen);
+    insnCodeGen::generateSubs(gen, aarch64::x28, aarch64::sp, 8);
+    insnCodeGen::generateStoreImm(gen, src, aarch64::x0, -8, true); 
+    SET_PTR(insn, gen);
+    if (gen.rs()) gen.rs()->incStack(8);
+}
 
 static Register aarch64_arg_regs[] = { registerSpace::r0, registerSpace::r1, registerSpace::r2, registerSpace::r3, registerSpace::r4, registerSpace::r5, registerSpace::r6, registerSpace::r7  };
 #define AARCH64_ARG_REGS (sizeof(aarch64_arg_regs) / sizeof(Register))
@@ -177,3 +183,183 @@ void EmitterAARCH64::emitOpImm(unsigned opcode1, unsigned opcode2, Register dest
 {
     assert(0);
 }
+
+void EmitterAARCH64::emitGetParam(Register dest, Register param_num, instPoint::Type pt_type, opCode op, bool addr_of, codeGen &gen)
+{
+    // Needs to convert to arm64
+   if (!addr_of && param_num < 6) {
+      emitLoadOrigRegister(aarch64_arg_regs[param_num], dest, gen);
+      gen.markRegDefined(dest);
+      return;
+   }
+   else if (addr_of && param_num < 6) {
+      Register reg = aarch64_arg_regs[param_num];
+      gen.markRegDefined(reg);
+      //stackItemLocation loc = getHeightOf(stackItem::framebase, gen);
+      registerSlot *regSlot = (*gen.rs())[reg];
+      assert(regSlot);
+      //loc.offset += (regSlot->saveOffset * 8);
+      //emitLEA(loc.reg.reg(), REG_NULL, 0, loc.offset, dest, gen);
+      return;
+   }
+   assert(param_num >= 6);
+   //stackItemLocation loc = getHeightOf(stackItem::stacktop, gen);
+   //if (!gen.bt() || gen.bt()->alignedStack) {
+   //   emitMovRMToReg64(dest, loc.reg.reg(), loc.offset, 8, gen);
+   //   loc.reg = RealRegister(dest);
+   ///   loc.offset = 0;
+   //}
+
+   switch (op) {
+      case getParamOp:
+         if (pt_type == instPoint::FuncEntry) {
+            //Return value before any parameters
+            //loc.offset += 8;
+         }
+         break;
+      case getParamAtCallOp:
+         break;
+      case getParamAtEntryOp:
+         //loc.offset += 8;
+         break;
+      default:
+         assert(0);
+         break;
+   }
+
+   //loc.offset += (param_num-6)*8;
+   //if (!addr_of)
+   //   emitMovRMToReg64(dest, loc.reg.reg(), loc.offset, 8, gen);
+   //else
+   //   emitLEA(loc.reg.reg(), Null_Register, 0, loc.offset, dest, gen);
+}
+
+void EmitterAARCH64::emitStore(Address addr, Register src, int size, codeGen &gen) {
+    Register scrach = gen.rs()->getScratchRegister(gen);
+    gen.markRegDefined(scrach);
+
+    //emitMovImToReg64(scrach, addr, true, gen);
+
+    //emitMove
+}
+
+void EmitterAARCH64::emitLoadOrigRegister(Dyninst::Address addr, Register r, codeGen &gen) {
+    std::cout << "dd " << std::endl;
+}
+
+bool EmitterAARCH64::emitPush(codeGen &gen, Register r) {
+    //GET_PTR(insn, gen);
+    //*insn++ = 
+    //    insn.setBits(0, 7, r);
+    //SET_PTR(insn, gen);
+    return true;
+}
+
+
+bool shouldSaveReg(registerSlot *reg, baseTramp *inst, bool saveFlags)
+{
+
+    if (inst->point()) {
+        regalloc_printf("\t shouldSaveReg for BT %p, from 0x%lx\n", inst, inst->point()->insnAddr() );
+    } else {
+        regalloc_printf("\t shouldSaveReg for iRPC\n");
+    }
+    if (reg->liveState != registerSlot::live) {
+        regalloc_printf("\t Reg %d not live, concluding don't save\n", reg->number);
+        return false;
+    }
+    if (saveFlags) {
+    }
+    if (inst && inst->validOptimizationInfo() && !inst->definedRegs[reg->encoding()]) {
+        regalloc_printf("\t Base tramp instance doesn't have reg %d (num %d) defined; concluding don't save\n",
+                reg->encoding(), reg->number);
+        return false;
+    }
+    return true;
+}
+
+bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
+
+    gen.setInInstrumentation(true);
+
+    int instFrameSize = 0;
+    int funcJumpSlotSize = 0;
+    if (bt) {
+        funcJumpSlotSize = bt->funcJumpSlotSize() * 4;
+    }
+
+    bool useFPRs =  BPatch::bpatch->isForceSaveFPROn() ||
+        ( BPatch::bpatch->isSaveFPROn()      &&
+          gen.rs()->anyLiveFPRsAtEntry()     &&
+          bt->saveFPRs() &&
+          bt->makesCall() );
+    bool alignStack = useFPRs || !bt || bt->checkForFuncCalls();
+    bool saveFlags = false; // gen.rs()->checkVolatileRegisters(gen, registerSlot::live);
+    bool createFrame = !bt || bt->needsFrame() || useFPRs || bt->makesCall();
+    bool saveOrigAddr = createFrame && bt->instP();
+
+    int num_saved = 0;
+    int num_to_save = 0;
+    // Calculate the number of registers we'll save
+#if 1
+    std::cout << "creatFrame " << createFrame << std::endl;
+    assert(gen.rs()->numGPRs() == 31);
+#endif
+    for (int i = 0; i < gen.rs()->numGPRs(); i++) {
+        registerSlot *reg = gen.rs()->GPRs()[i];
+        if (!shouldSaveReg(reg, bt, saveFlags))
+            continue;
+        if (createFrame && reg->encoding() == aarch64::FPR)
+            continue;
+        num_to_save++;
+    }
+    if (createFrame) {
+        num_to_save++;
+    }
+    if (saveOrigAddr) {
+        num_to_save++;
+    }
+    if (saveFlags) {
+        num_to_save++;
+    }
+
+    // Save the live ones
+    for (int i = 0; i < gen.rs()->numGPRs(); i++) {
+        registerSlot *reg = gen.rs()->GPRs()[i];
+
+        if (!shouldSaveReg(reg, bt, saveFlags))
+            continue;
+        if (createFrame && reg->encoding() == aarch64::FPR)
+            continue;
+        emitPushReg64(reg->encoding(),gen);
+        // We move the FP down to just under here, so we're actually
+        // measuring _up_ from the FP.
+        num_saved++;
+        gen.rs()->markSavedRegister(reg->encoding(), num_to_save-num_saved);
+    }
+
+    bool flags_saved = gen.rs()->saveVolatileRegisters(gen);
+    bool localSpace = createFrame || useFPRs ||
+        (bt && bt->validOptimizationInfo() && bt->spilledRegisters);
+
+    if (bt) {
+        bt->savedFPRs = useFPRs;
+        bt->createdFrame = createFrame;
+        bt->savedOrigAddr = saveOrigAddr;
+        bt->createdLocalSpace = localSpace;
+        bt->alignedStack = alignStack;
+        bt->savedFlags = flags_saved;
+    }
+
+    int flags_saved_i = flags_saved ? 1 : 0;
+    int base_i = (saveOrigAddr ? 1 : 0) + (createFrame ? 1 : 0);
+
+    int numRegsUsed = bt ? bt->numDefinedRegs() : -1;
+    //if (numRegsUsed == -1 ||
+      //      numRegsUsed > X86_REGS_SAVE_LIMIT)
+        //)
+        //{}
+
+
+}
+

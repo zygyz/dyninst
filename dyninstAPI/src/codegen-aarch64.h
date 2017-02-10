@@ -74,8 +74,10 @@ class insnCodeGen {
                                   Register ra, Register rb);
     static void generateStoreReg64(codeGen &gen, Register rs,
                                    Register ra, Register rb);
+    static void generateStoreImm(codeGen &gen, Register rn, Register rt, long imm9, bool post_index);
     static void generateAddReg(codeGen &gen, int op,
                             Register rt, Register ra, Register rb);
+    static void generateSubs(codeGen &gen, Register rn, Register rd, long imm12);
     static void generateImm(codeGen &gen, int op,
                             Register rt, Register ra, int immd);
     static void generateMemAccess64(codeGen &gen, int op, int xop,

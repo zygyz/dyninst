@@ -157,8 +157,10 @@ if(BUILD_DOCS)
       file(GLOB_RECURSE DEPS ${CMAKE_CURRENT_SOURCE_DIR}/${COMPONENT}/doc/*.tex ${CMAKE_CURRENT_SOURCE_DIR}/common/doc/*.tex)
       add_custom_command(
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${COMPONENT}/doc/${COMPONENT}.aux
+        BYPRODUCTS byproduct.txt
         DEPENDS ${DEPS}
         COMMAND ${PDFLATEX_COMPILER}
+                byproduct.txt
         ARGS -interaction=batchmode ${COMPONENT}.tex
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${COMPONENT}/doc
         COMMENT "Latex (first pass)"

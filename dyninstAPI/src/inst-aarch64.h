@@ -228,4 +228,24 @@ unsigned saveSPRegisters(codeGen &gen, registerSpace *,
 unsigned restoreSPRegisters(codeGen &gen, registerSpace *,
                             int save_off, int force_save);
 
+struct stackItem {
+   enum stackItem_t {
+      reg_item,
+      stacktop,
+      framebase
+   } item;
+   Register reg;
+   stackItem(stackItem_t i) { assert(i != reg_item); item = i; }
+   stackItem(Register r) { item = reg_item; reg = r; }
+   stackItem() {}
+};
+
+struct stackItemLocation {
+   Register reg;
+   int offset;
+   stackItemLocation(Register r, int o) { reg = r; offset = o; }
+};
+
+stackItemLocation getHeightOf(stackItem sitem, codeGen &gen);
+
 #endif
