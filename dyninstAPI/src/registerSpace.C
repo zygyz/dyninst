@@ -1364,7 +1364,7 @@ int registerSpace::getInstFrameSize() {
 
 #endif
 
-#if !defined(arch_x86) && !defined(arch_x86_64)
+#if !defined(arch_x86) && !defined(arch_x86_64) 
 void registerSpace::initRealRegSpace()
 {
 }
@@ -1409,7 +1409,8 @@ std::vector<RealRegsState>& registerSpace::regState()
    return none;
 }
 
-void registerSpace::incStack(int) {
+void registerSpace::incStack(int val) {
+
 }
 
 void registerSpace::setStackHeight(int) {

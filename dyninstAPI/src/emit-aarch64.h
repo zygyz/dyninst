@@ -80,8 +80,8 @@ class EmitterAARCH64 : public Emitter {
 
     virtual void emitStoreOrigRegister(Address, Register, codeGen &) { assert(0); }
 
-    virtual bool emitMoveRegToReg(Register, Register, codeGen &);
-    virtual bool emitMoveRegToReg(registerSlot *src, registerSlot *dest, codeGen &gen);
+    bool emitMoveRegToReg(Register, Register, codeGen &);
+    bool emitMoveRegToReg(registerSlot *src, registerSlot *dest, codeGen &gen);
 
     virtual Address emitMovePCToReg(Register, codeGen& gen);
 

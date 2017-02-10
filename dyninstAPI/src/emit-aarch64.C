@@ -52,10 +52,14 @@
 #include "RegisterConversion.h"
 
 void emitPushReg64(Register src, codeGen &gen) {
-    //emitPush(gen, src);
+    // See Processos blog Using the Stack in AArch64
+    // ... is what the Gogole V8 JavaScript engine uses,
+    // and it's also what VIXL's MacroAssembler uses
+    // sub sp, x28, #8
+    // str x0, [x28, #-8]!
     GET_PTR(insn, gen);
     insnCodeGen::generateSubs(gen, aarch64::x28, aarch64::sp, 8);
-    insnCodeGen::generateStoreImm(gen, src, aarch64::x0, -8, true); 
+    insnCodeGen::generateStoreImm(gen, src, aarch64::x0, -8, false); 
     SET_PTR(insn, gen);
     if (gen.rs()) gen.rs()->incStack(8);
 }

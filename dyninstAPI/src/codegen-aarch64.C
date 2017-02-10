@@ -211,9 +211,11 @@ void insnCodeGen::generateStoreImm(codeGen &gen, Register rn, Register rd, long 
     INSN_SET(insn, 27, 27, 1);
     INSN_SET(insn, 21, 26, 0);
     INSN_SET(insn, 12 , 20, imm9);
-    INSN_SET(insn, 11, 11, 0);
+    int bit11 = (post_index) ? 0 : 1;
+    INSN_SET(insn, 11, 11, bit11);
     INSN_SET(insn, 10, 10, 1);
     INSN_SET(insn, 5, 9, rn);
+    INSN_SET(insn, 0, 4, rd);
 
     insnCodeGen::generate(gen, insn);
 }

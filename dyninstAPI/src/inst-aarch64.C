@@ -1077,3 +1077,4 @@ Address Emitter::getInterModuleFuncAddr(func_instance *func, codeGen& gen)
     assert(0); //Not implemented
     return NULL;
 }
+
