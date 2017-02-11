@@ -66,8 +66,8 @@ class insnCodeGen {
                                       Address to,
                                       bool isCall);
 
-    static void generateLoadReg(codeGen &gen, Register rt,
-                                Register ra, Register rb);
+    static void generateLoadReg(codeGen &gen, Register rm,
+                                Register rn, Register rt);
     static void generateStoreReg(codeGen &gen, Register rs,
                                  Register ra, Register rb);
     static void generateLoadReg64(codeGen &gen, Register rt,

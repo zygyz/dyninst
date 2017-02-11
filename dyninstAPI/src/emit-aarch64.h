@@ -58,7 +58,7 @@ class EmitterAARCH64 : public Emitter {
     virtual void emitDiv(Register, Register, Register, codeGen &) { assert(0); }
     virtual void emitTimesImm(Register, Register, RegValue, codeGen &) { assert(0); }
     virtual void emitDivImm(Register, Register, RegValue, codeGen &) { assert(0); }
-    virtual void emitLoad(Register, Address, int, codeGen &) { assert(0); }
+    void emitLoad(Register, Address, int, codeGen &);
     virtual void emitLoadConst(Register, Address, codeGen &) { assert(0); }
     virtual void emitLoadIndir(Register, Register, int, codeGen &) { assert(0); }
     virtual bool emitCallRelative(Register, Address, Register, codeGen &);
@@ -118,12 +118,14 @@ class EmitterAARCH64 : public Emitter {
 };
 
 void emitPushReg64(Register src, codeGen &gen);
+void EmitPopReg(Register src, codeGen &gen);
 
 class EmitterAARCH64Dyn : public EmitterAARCH64
 {
   public:
   virtual bool emitTOCCall(block_instance *dest, codeGen &gen) { return emitTOCCommon(dest, true, gen); }
   virtual bool emitTOCJump(block_instance *dest, codeGen &gen) { return emitTOCCommon(dest, false, gen); }
+  bool emitCallInstruction(codeGen &gen, func_instance*, Register);
     virtual ~EmitterAARCH64Dyn() {}
  private:
     bool emitTOCCommon(block_instance *dest, bool call, codeGen &gen);

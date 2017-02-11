@@ -176,10 +176,20 @@ void insnCodeGen::generateSubs(codeGen &gen, Register rn, Register rd, long imm1
 }
 
 void insnCodeGen::generateLoadReg(codeGen &gen, Register rt,
-                                  Register ra, Register rb)
+                                  Register rm, Register rn)
 {
-    
-//#warning "This function is not implemented yet!"
+    instruction insn;
+    insn.clear();
+
+    INSN_SET(insn, 28, 31, 0xf); // assuming 64-bit variant
+    INSN_SET(insn, 27, 27, 1);
+    INSN_SET(insn, 23, 26, 0);
+    INSN_SET(insn, 21, 22, 0x3);
+    INSN_SET(insn, 16, 20, rm);
+    INSN_SET(insn, 13, 13, 1); // Rm is 64-bit wide
+    INSN_SET(insn, 0, 4, rt); // Xt
+
+    insnCodeGen::generate(gen, insn);
 }
 
 void insnCodeGen::generateStoreReg(codeGen &gen, Register rt,

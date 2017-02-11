@@ -499,9 +499,9 @@ bool registerSpace::checkVolatileRegisters(codeGen & /*gen*/,
 }
 #else
 bool registerSpace::checkVolatileRegisters(codeGen &,
-                                           registerSlot::livenessState_t)
+                                           registerSlot::livenessState_t state)
 {
-    return true;
+    return false;
 }
 #endif
 
@@ -1410,7 +1410,7 @@ std::vector<RealRegsState>& registerSpace::regState()
 }
 
 void registerSpace::incStack(int val) {
-
+   regStateStack[regStateStack.size()-1]->stack_height += val;
 }
 
 void registerSpace::setStackHeight(int) {

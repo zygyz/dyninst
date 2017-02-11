@@ -59,9 +59,17 @@ void emitPushReg64(Register src, codeGen &gen) {
     // str x0, [x28, #-8]!
     GET_PTR(insn, gen);
     insnCodeGen::generateSubs(gen, aarch64::x28, aarch64::sp, 8);
+    SET_PTR(insn, gen);
     insnCodeGen::generateStoreImm(gen, src, aarch64::x0, -8, false); 
     SET_PTR(insn, gen);
     if (gen.rs()) gen.rs()->incStack(8);
+}
+
+void emitPopReg(Register src, codeGen &gen) {
+    // ldr x0, [x28], #8 // pop {x0}
+    GET_PTR(insn, gen);
+    insnCodeGen::generateLoadReg(gen, aarch64::x28, aarch64::x1, aarch64::x0);
+    SET_PTR(insn, gen);
 }
 
 static Register aarch64_arg_regs[] = { registerSpace::r0, registerSpace::r1, registerSpace::r2, registerSpace::r3, registerSpace::r4, registerSpace::r5, registerSpace::r6, registerSpace::r7  };
@@ -120,7 +128,7 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
                 savedRegsToRestore.push_back(regToSave);
 
                 // The register is live; save it.
-                //emitPushReg64(reg->encoding(), gen);
+                emitPushReg64(reg->encoding(), gen);
                 // And now that it's saved, nuke it
                 reg->refCount = 0;
                 reg->keptValue = false;
@@ -132,7 +140,7 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
         }
     }
 
-    // generate code for arguments
+    // generate code for arguments, still copy and pasted from the x86 counter part
     int frame_size = 0;
     for (int u = operands.size() - 1; u >= 0; u--) {
         Address unused = ADDR_NULL;
@@ -141,7 +149,7 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
             if (!operands[u]->generateCode_phase2(gen, noCost, unused, reg))
                 assert(0);
             assert(reg != REG_NULL);
-            //emitPushReg64(reg, gen);
+            emitPushReg64(reg, gen);
             gen.rs()->freeRegister(reg);
             frame_size++;
         } else {
@@ -155,21 +163,65 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
             if (!operands[u]->generateCode_phase2(gen, noCost, unused, reg))
                 assert(0);
             if (reg != aarch64_arg_regs[u]) {
-                //emitMovRegToReg64(amd64_arg_regs[u], reg, true, gen);
+                emitMoveRegToReg(aarch64_arg_regs[u], reg, gen);
             }
         }
     }
 
+    //emitCallInstruction(gen, callee, REG_NULL);
+
+    for (int i = 0; i < operands.size(); i++) {
+        if (i == AARCH64_ARG_REGS) break; 
+
+        if (operands[i]->decRefCount())
+            gen.rs()->freeRegister(aarch64_arg_regs[i]);
+    }
+    if (frame_size) {
+        
+    }
+
+    //if (alignment) {
+//
+  //  }
+
+    if (!inInstrumentation) return REG_NULL;
     Register ret = gen.rs()->allocateRegister(gen, noCost);
     gen.markRegDefined(ret);
-    //emitMovRegToReg64(ret, aarch64::x0, true, gen);
+    emitMoveRegToReg(ret, aarch64::x0, gen);
+
+    // Now restore any registers live over the call
+    for (int i = savedRegsToRestore.size() - 1; i >= 0; i--) {
+        registerSlot *reg = (*gen.rs())[savedRegsToRestore[i].first];
+        emitPopReg(reg->encoding(), gen);
+    }
 
     return ret;
 
 }
 
+bool EmitterAARCH64Dyn::emitCallInstruction(codeGen &gen, func_instance *callee, Register r) {
+    if (gen.startAddr() != (Address)-1) {
+        signed long disp = callee->addr() - (gen.currAddr() + 5);
+        int disp_i = (int) disp;
+        if (disp == (signed long) disp_i) {
+            
+            return true;
+        }
+    }
+
+    pdvector<Register> excluded; // scratch regs are r16-18
+    excluded.push_back(gen.rs()->GPR(16));
+   
+
+    Register ptr = gen.rs()->getScratchRegister(gen, excluded);
+
+}
+
 bool EmitterAARCH64::emitMoveRegToReg(Register src, Register dest, codeGen &gen) {
-    assert(0);
+    if (dest == src) return true; 
+
+    Register tmp_dest = dest;
+    Register tmp_src = src;
     return true;
 }
 
@@ -247,7 +299,12 @@ void EmitterAARCH64::emitStore(Address addr, Register src, int size, codeGen &ge
     //emitMove
 }
 
-void EmitterAARCH64::emitLoadOrigRegister(Dyninst::Address addr, Register r, codeGen &gen) {
+void EmitterAARCH64::emitLoad(Register dest, Address addr, int val, codeGen &gen) {
+   GET_PTR(insn, gen);
+
+}
+
+void EmitterAARCH64::emitLoadOrigRegister(Address addr, Register r, codeGen &gen) {
     std::cout << "dd " << std::endl;
 }
 
@@ -298,17 +355,13 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
           bt->saveFPRs() &&
           bt->makesCall() );
     bool alignStack = useFPRs || !bt || bt->checkForFuncCalls();
-    bool saveFlags = false; // gen.rs()->checkVolatileRegisters(gen, registerSlot::live);
+    bool saveFlags = gen.rs()->checkVolatileRegisters(gen, registerSlot::live);
     bool createFrame = !bt || bt->needsFrame() || useFPRs || bt->makesCall();
     bool saveOrigAddr = createFrame && bt->instP();
 
     int num_saved = 0;
     int num_to_save = 0;
     // Calculate the number of registers we'll save
-#if 1
-    std::cout << "creatFrame " << createFrame << std::endl;
-    assert(gen.rs()->numGPRs() == 31);
-#endif
     for (int i = 0; i < gen.rs()->numGPRs(); i++) {
         registerSlot *reg = gen.rs()->GPRs()[i];
         if (!shouldSaveReg(reg, bt, saveFlags))
@@ -363,7 +416,6 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
       //      numRegsUsed > X86_REGS_SAVE_LIMIT)
         //)
         //{}
-
 
 }
 
