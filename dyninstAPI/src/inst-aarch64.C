@@ -440,6 +440,10 @@ void emitImm(opCode op, Register src1, RegValue src2imm, Register dest,
 
 void cleanUpAndExit(int status);
 
+stackItemLocation getHeightOf(stackItem item, codeGen &gen) {
+
+}
+
 /* Recursive function that goes to where our instrumentation is calling
    to figure out what registers are clobbered there, and in any function
    that it calls, to a certain depth ... at which point we clobber everything

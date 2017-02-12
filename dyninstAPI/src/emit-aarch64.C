@@ -304,8 +304,25 @@ void EmitterAARCH64::emitLoad(Register dest, Address addr, int val, codeGen &gen
 
 }
 
-void EmitterAARCH64::emitLoadOrigRegister(Address addr, Register r, codeGen &gen) {
-    std::cout << "dd " << std::endl;
+void EmitterAARCH64::emitLoadOrigRegister(Address register_num, Register destination, codeGen &gen) {
+    std::cout << __func__ << std::endl; // added to C+++ in C++11
+
+    registerSlot *src = (*gen.rs())[register_num];
+    assert(src);
+    registerSlot *dest = (*gen.rs())[destination];
+    assert(dest);
+
+    if (register_num == registerSpace::sp) {
+        std::cout << "sp is chosen " << std::endl;
+        stackItemLocation loc = getHeightOf(stackItem::stacktop, gen);
+        if (!gen.bt() || gen.bt()->alignedStack) {
+            //emitMovRMToReg64(destination, loc.reg.reg(), loc.offset, 8, gen);
+        } else {
+            //emitLEA(loc.reg.reg(), Null_Register, 0, loc.offset, destination, gen);
+        }
+        return;
+    }
+    return;
 }
 
 bool EmitterAARCH64::emitPush(codeGen &gen, Register r) {

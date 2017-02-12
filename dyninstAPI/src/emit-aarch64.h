@@ -69,7 +69,7 @@ class EmitterAARCH64 : public Emitter {
     // These implicitly use the stored original/non-inst value
     virtual void emitLoadOrigFrameRelative(Register, Address, codeGen &) { assert(0); }
     virtual void emitLoadOrigRegRelative(Register, Address, Register, codeGen &, bool) { assert(0); }
-    virtual void emitLoadOrigRegister(Address, Register, codeGen &);
+    void emitLoadOrigRegister(Address, Register, codeGen &);
 
     virtual void emitStore(Address, Register, int, codeGen &);
     virtual void emitStoreIndir(Register, Register, int, codeGen &) { assert(0); }
