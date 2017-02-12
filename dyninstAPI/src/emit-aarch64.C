@@ -344,10 +344,6 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
     gen.setInInstrumentation(true);
 
     int instFrameSize = 0;
-    int funcJumpSlotSize = 0;
-    if (bt) {
-        funcJumpSlotSize = bt->funcJumpSlotSize() * 4;
-    }
 
     bool useFPRs =  BPatch::bpatch->isForceSaveFPROn() ||
         ( BPatch::bpatch->isSaveFPROn()      &&
@@ -356,7 +352,7 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
           bt->makesCall() );
     bool alignStack = useFPRs || !bt || bt->checkForFuncCalls();
     bool saveFlags = gen.rs()->checkVolatileRegisters(gen, registerSlot::live);
-    bool createFrame = !bt || bt->needsFrame() || useFPRs || bt->makesCall();
+    bool createFrame = !bt || bt->needsFrame() || useFPRs;
     bool saveOrigAddr = createFrame && bt->instP();
 
     int num_saved = 0;
@@ -381,6 +377,14 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
         num_to_save++;
     }
 
+    bool skipRedZone = (num_to_save > 0) || alignStack || saveOrigAddr || createFrame;
+
+    if (alignStack) {
+        //
+    } else if (skipRedZone) {
+        // instFrameSize += some_red_zone;
+    }
+
     // Save the live ones
     for (int i = 0; i < gen.rs()->numGPRs(); i++) {
         registerSlot *reg = gen.rs()->GPRs()[i];
@@ -396,23 +400,33 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
         gen.rs()->markSavedRegister(reg->encoding(), num_to_save-num_saved);
     }
 
-    bool flags_saved = gen.rs()->saveVolatileRegisters(gen);
-    bool localSpace = createFrame || useFPRs ||
-        (bt && bt->validOptimizationInfo() && bt->spilledRegisters);
+    // Save flags if we need to
 
-    if (bt) {
-        bt->savedFPRs = useFPRs;
-        bt->createdFrame = createFrame;
-        bt->savedOrigAddr = saveOrigAddr;
-        bt->createdLocalSpace = localSpace;
-        bt->alignedStack = alignStack;
-        bt->savedFlags = flags_saved;
+    // push a return address for stack walking
+    if (saveOrigAddr) {
+        num_saved++;
     }
 
-    int flags_saved_i = flags_saved ? 1 : 0;
-    int base_i = (saveOrigAddr ? 1 : 0) + (createFrame ? 1 : 0);
+    // Push FPR
+    if (createFrame) {
+        // set up a fresh stack frame
+        gen.rs()->markSavedRegister(aarch64::FPR, 0);
+        num_saved++;
+        
+    }
 
-    int numRegsUsed = bt ? bt->numDefinedRegs() : -1;
+    assert(num_saved == num_to_save);
 
+    // Prepare out stack bookkeeping data structures.
+    instFrameSize += num_saved * 8;
+    if (bt) {
+        bt->stackHeight = instFrameSize;
+    }
+    gen.rs()->setInstFrameSize(instFrameSize);
+    gen.rs()->setStackHeight(0);
+
+    // When using FPRs
+
+    return true;
 }
 

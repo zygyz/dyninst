@@ -1418,7 +1418,17 @@ void registerSpace::setStackHeight(int) {
 
 int registerSpace::getStackHeight()
 {
-   return 0;
+    if (!regStateStack.size())
+        initRealRegSpace();
+    return regStateStack[regStateStack.size()-1]->stack_height;
+}
+
+void registerSpace::setInstFrameSize(int val) {
+    instFrameSize_ = val;
+}
+
+int registerSpace::getInstFrameSize() {
+    return instFrameSize_;
 }
 #endif
 
