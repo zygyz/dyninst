@@ -139,7 +139,7 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
             }
         }
     }
-    inInstrumentation = true;
+
     // generate code for arguments, still copy and pasted from the x86 counter part
     int frame_size = 0;
     for (int u = operands.size() - 1; u >= 0; u--) {
@@ -153,7 +153,6 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
             gen.rs()->freeRegister(reg);
             frame_size++;
         } else {
-            std::cout << "u : " << u << std::endl;
             if (gen.rs()->allocateSpecificRegister(gen, (unsigned) aarch64_arg_regs[u], true))
                 reg = aarch64_arg_regs[u];
             else {
@@ -371,6 +370,7 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
             continue;
         num_to_save++;
     }
+    std::cout << "num_to_save " << num_to_save << " createFrame is " << createFrame << std::endl;
     if (createFrame) {
         num_to_save++;
     }
