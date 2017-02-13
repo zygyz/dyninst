@@ -502,13 +502,35 @@ void ABI::initialize32(){
 }
 
 void ABI::initialize64(){
-    returnRead64_ = getBitArray(machRegIndex_aarch64().size());
-    returnRead64_[machRegIndex_aarch64()[aarch64::x2]] = true;
-    returnRead64_[machRegIndex_aarch64()[aarch64::x3]] = true;
-    returnRead64_[machRegIndex_aarch64()[aarch64::x4]] = true;
-    returnRead64_[machRegIndex_aarch64()[aarch64::x5]] = true;
 
-    // Calls
+    // SVR4-like calling standard, see Procedure Call Standard for the ARM
+    // 64-bit Architecture (AArch64), ARM IHI 0055B
+
+    returnRegs64_ = getBitArray(machRegIndex_aarch64().size());
+
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x0]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x1]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x2]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x3]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x4]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x5]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x6]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x7]] = true;
+    returnRegs64_[machRegIndex_aarch64()[aarch64::x8]] = true; // Indirect result location register
+
+    returnRead64_ = getBitArray(machRegIndex_aarch64().size());
+
+    returnRead64_[machRegIndex_aarch64()[aarch64::x19]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x20]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x21]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x22]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x23]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x24]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x25]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x26]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x27]] = true;
+    returnRead64_[machRegIndex_aarch64()[aarch64::x28]] = true;
+
     callRead64_ = getBitArray(machRegIndex_aarch64().size());
 
     callRead64_[machRegIndex_aarch64()[aarch64::x0]] = true;
@@ -520,18 +542,17 @@ void ABI::initialize64(){
     callRead64_[machRegIndex_aarch64()[aarch64::x6]] = true;
     callRead64_[machRegIndex_aarch64()[aarch64::x7]] = true;
 
-    callWritten64_ = getBitArray(machRegIndex_aarch64().size());
-
-    callWritten64_[machRegIndex_aarch64()[aarch64::x0]] = true;
-    callWritten64_[machRegIndex_aarch64()[aarch64::x1]] = true;
-    callWritten64_[machRegIndex_aarch64()[aarch64::x2]] = true;
-    callWritten64_[machRegIndex_aarch64()[aarch64::x3]] = true;
-    callWritten64_[machRegIndex_aarch64()[aarch64::x4]] = true;
-    callWritten64_[machRegIndex_aarch64()[aarch64::x5]] = true;
-    callWritten64_[machRegIndex_aarch64()[aarch64::x6]] = true;
-    callWritten64_[machRegIndex_aarch64()[aarch64::x7]] = true;
+    callWritten64_ = callRead64_;
+    // As well as X8
+    callWritten64_[machRegIndex_aarch64()[aarch64::x8]] = true;
 
     allRegs_ = getBitArray(machRegIndex_aarch64().size()).set();
+
+    // Assume a syscall reaads or writes _everything_
+    syscallRead64_ = getBitArray(machRegIndex_aarch64().size()).set();
+    syscallWritten64_ = syscallRead64_;
+
+    allRegs64_ = getBitArray(machRegIndex_aarch64().size()).set();
 
 }
 #endif

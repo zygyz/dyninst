@@ -242,7 +242,7 @@ void EmitterAARCH64::emitOpImm(unsigned opcode1, unsigned opcode2, Register dest
 
 void EmitterAARCH64::emitGetParam(Register dest, Register param_num, instPoint::Type pt_type, opCode op, bool addr_of, codeGen &gen)
 {
-    // Needs to convert to arm64
+    // Needs to fully convert to arm64
    if (!addr_of && param_num < 6) {
       emitLoadOrigRegister(aarch64_arg_regs[param_num], dest, gen);
       gen.markRegDefined(dest);
@@ -367,6 +367,7 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
           gen.rs()->anyLiveFPRsAtEntry()     &&
           bt->saveFPRs() &&
           bt->makesCall() );
+    useFPRs = false; // for the test_stack_1 test
     bool alignStack = useFPRs || !bt || bt->checkForFuncCalls();
     bool saveFlags = gen.rs()->checkVolatileRegisters(gen, registerSlot::live);
     bool createFrame = !bt || bt->needsFrame() || useFPRs;
