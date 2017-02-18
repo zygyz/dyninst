@@ -58,9 +58,9 @@ void emitPushReg64(Register src, codeGen &gen) {
     // sub sp, x28, #8
     // str x0, [x28, #-8]!
     GET_PTR(insn, gen);
-    insnCodeGen::generateSubs(gen, aarch64::x28, aarch64::sp, 8);
+    //insnCodeGen::generateSubs(gen, aarch64::x28, aarch64::sp, 8);
     SET_PTR(insn, gen);
-    insnCodeGen::generateStoreImm(gen, src, aarch64::x0, -8, false); 
+    //insnCodeGen::generateStoreImm(gen, src, aarch64::x0, -8, false); 
     SET_PTR(insn, gen);
     if (gen.rs()) gen.rs()->incStack(8);
 }
@@ -162,9 +162,9 @@ Register EmitterAARCH64::emitCall(opCode op, codeGen &gen, const pdvector<AstNod
             gen.markRegDefined(reg);
             if (!operands[u]->generateCode_phase2(gen, noCost, unused, reg))
                 assert(0);
-            if (reg != aarch64_arg_regs[u]) {
-                emitMoveRegToReg(aarch64_arg_regs[u], reg, gen);
-            }
+            //if (reg != aarch64_arg_regs[u]) {
+            //    emitMoveRegToReg(aarch64_arg_regs[u], reg, gen);
+           // }
         }
     }
 
@@ -448,3 +448,80 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
     return true;
 }
 
+bool EmitterAARCH64::emitBTRestores(baseTramp *bt, codeGen &gen) {
+
+    bool useFPRs = false;
+    bool createFrame = false;
+    bool saveOrigAddr = false;
+    bool alignStack = false;
+    bool skippedRedZone = false;
+    bool restoreFlags = false;
+
+    if (bt) {
+        useFPRs = bt->savedFPRs;
+        createFrame = bt->createdFrame;
+        saveOrigAddr = bt->savedOrigAddr;
+        alignStack = bt->alignedStack;
+        skippedRedZone = bt->skippedRedZone;
+        restoreFlags = bt->savedFlags;
+    } else {
+        useFPRs =  BPatch::bpatch->isForceSaveFPROn() ||
+                    ( BPatch::bpatch->isSaveFPROn()      &&
+                    gen.rs()->anyLiveFPRsAtEntry()     &&
+                    bt->saveFPRs()               &&
+                    !bt->makesCall() );
+        createFrame = true;
+        saveOrigAddr = false;
+        alignStack = true;
+        skippedRedZone = true; // Obviated by alignStack, but hey
+        restoreFlags = true;
+    }
+
+    if (useFPRs) {
+        // restore saved FP state
+        // fxrstor (%rsp) ; 0x0f 0xae 0x04 0x24
+        if (bt && bt->wasFullFPRSave) {
+            GET_PTR(buffer, gen);
+            SET_PTR(buffer, gen);
+        } else {
+            //emitMovRegToReg64(REGNUM_RAX, REGNUM_RSP, true, gen);
+            //emitXMMRegsSaveRestore(gen, true);
+        }
+    }
+
+    //int extra_space = gen.rs()->getStackHeight();
+    //assert(extra_space == extra_space_check);
+    //if (!createFrame && extra_space) {
+        //emitLEA(REGNUM_RSP, Null_Register, 0, extra_space, REGNUM_RSP, gen);
+    //}
+
+    if (createFrame) {
+        // tear down the stack frame (LEAVE)
+    }
+
+    // pop "fake" return address
+    if (saveOrigAddr) {
+    }
+    
+    // Restore flags
+    if (restoreFlags) {
+    }
+
+    // restore saved registers
+    for (int i = gen.rs()->numGPRs() - 1; i >= 0; i--) {
+        registerSlot *reg = gen.rs()->GPRs()[i];
+
+        if (reg->liveState == registerSlot::spilled) {
+        }
+    }
+
+    // Restore the (possibly unaligned) stack pointer.
+    if (alignStack) {
+
+    } else if (skippedRedZone) {
+        
+    }
+
+    gen.setInInstrumentation(false);
+    return true;
+}

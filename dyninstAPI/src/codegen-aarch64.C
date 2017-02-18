@@ -162,19 +162,6 @@ void insnCodeGen::generateAddReg (codeGen & gen, int op, Register rt,
     insnCodeGen::generate(gen, insn);
 }
 
-void insnCodeGen::generateSubs(codeGen &gen, Register rn, Register rd, long imm12) {
-    instruction insn;
-    insn.clear();
-
-    INSN_SET(insn, 28, 31, 0xf);
-    INSN_SET(insn, 24, 27, 1); 
-    INSN_SET(insn, 22, 23, 1);
-    INSN_SET(insn, 10, 21, imm12);
-    INSN_SET(insn, 5, 9, rn);
-    INSN_SET(insn, 0, 4, rd);
-    insnCodeGen::generate(gen, insn);
-}
-
 void insnCodeGen::generateLoadReg(codeGen &gen, Register rt,
                                   Register rm, Register rn)
 {
@@ -213,6 +200,7 @@ void insnCodeGen::generateStoreReg64(codeGen &gen, Register rs,
 //#warning "This function is not implemented yet!"
 }
 
+/*
 void insnCodeGen::generateStoreImm(codeGen &gen, Register rn, Register rd, long imm9, bool post_index) {
     instruction insn;
     insn.clear();
@@ -229,7 +217,7 @@ void insnCodeGen::generateStoreImm(codeGen &gen, Register rn, Register rd, long 
 
     insnCodeGen::generate(gen, insn);
 }
-
+*/
 void insnCodeGen::generateImm(codeGen &gen, int op, Register rt, Register ra, int immd)
  {
 
