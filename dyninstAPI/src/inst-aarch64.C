@@ -440,10 +440,56 @@ void emitImm(opCode op, Register src1, RegValue src2imm, Register dest,
 
 void cleanUpAndExit(int status);
 
-stackItemLocation getHeightOf(stackItem item, codeGen &gen) {
+stackItemLocation getHeightOf(stackItem sitem, codeGen &gen) {
 
+    int offset = 0;
+    int addr_width = gen.addrSpace()->getAddressWidth();
+    Register reg;
+
+    if (sitem.item == stackItem::reg_item && sitem.reg == registerSpace::sp) {
+        sitem.item = stackItem::stacktop;
+    }
+
+    switch (sitem.item) {
+        case stackItem::reg_item:
+            {
+                registerSlot *r = NULL;
+                pdvector<registerSlot *> &regs = gen.rs()->trampRegs();
+                for (unsigned i=0; i<regs.size(); i++) {
+                    if (regs[i]->number == (unsigned) sitem.reg) {
+                        r = regs[i];
+                        break;
+                    }
+                }
+                if (!r) r = (*gen.rs())[sitem.reg];
+                assert(r);
+                offset = r->saveOffset * addr_width;
+                if (!gen.bt() || gen.bt()->createdFrame) {
+                    reg = registerSpace::r29;
+                    return stackItemLocation(reg, offset);
+                }
+                offset += gen.rs()->getStackHeight();
+                return stackItemLocation(registerSpace::sp, offset);
+            }
+        case stackItem::stacktop:
+            {
+                offset = gen.rs()->getInstFrameSize();
+                if (!gen.bt() || gen.bt()->createdFrame) {
+                    return stackItemLocation(registerSpace::r29, offset);
+                }
+                offset += gen.rs()->getStackHeight();
+                return stackItemLocation(registerSpace::sp, offset);
+            }
+        case stackItem::framebase:
+            {
+                if (!gen.bt() || gen.bt()->createdFrame) {
+                    return stackItemLocation(registerSpace::r29, 0);
+                }
+                offset = gen.rs()->getStackHeight();
+                return stackItemLocation(registerSpace::sp, offset);
+            }
+    }
 }
-
 /* Recursive function that goes to where our instrumentation is calling
    to figure out what registers are clobbered there, and in any function
    that it calls, to a certain depth ... at which point we clobber everything
