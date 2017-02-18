@@ -110,10 +110,10 @@ void insnCodeGen::generateBranch(codeGen &gen, Address from, Address to, bool li
     long disp = (to - from);
 
     if (ABS(disp) > MAX_BRANCH_OFFSET) {
-        return generateLongBranch(gen, from, to, link);
+        generateLongBranch(gen, from, to, link);
     }
 
-    return generateBranch(gen, disp, link);
+    generateBranch(gen, disp, link);
 
 }
 
@@ -131,7 +131,7 @@ void insnCodeGen::generateBranchViaTrap(codeGen &gen, Address from, Address to, 
     long disp = to - from;
     if (ABS(disp) <= MAX_BRANCH_OFFSET) {
         // We shouldn't be here, since this is an internal-called-only func.
-        return generateBranch(gen, disp, isCall);
+        generateBranch(gen, disp, isCall);
     }
 
     assert (!isCall); // Can't do this yet
@@ -283,15 +283,13 @@ void insnCodeGen::generateRShift64(codeGen &gen, Register rs, int shift, Registe
 // generate an instruction that does nothing and has to side affect except to
 //   advance the program counter.
 //
-void insnCodeGen::generateNOOP(codeGen &gen, unsigned size)
-{
-	    // Be more efficient here...
-	    while (size) {
-	    	GET_PTR(insn, gen);
-	        //*insn++ = NOP;
-	        SET_PTR(insn, gen);
-	        size -= sizeof(unsigned char);
-	    }
+void insnCodeGen::generateNOOP(codeGen &gen, unsigned size) {
+    assert((size % instruction::size()) == 0);
+    while (size) {
+        instruction insn(NOOP);
+        insnCodeGen::generate(gen, insn);
+        size -= instruction::size();
+    }
 }
 
 void insnCodeGen::generateSimple(codeGen &gen, int op,
@@ -339,79 +337,12 @@ void insnCodeGen::removeStackFrame(codeGen &gen) {
 bool insnCodeGen::generate(codeGen &gen,
                            instruction &insn,
                            AddressSpace * /*proc*/,
-                           Address origAddr,
-                           Address relocAddr,
-                           patchTarget *fallthroughOverride,
-                           patchTarget *targetOverride) {
-
-//#warning "This function is not implemented yet!"
+                           Address /*origAddr*/,
+                           Address /*relocAddr*/,
+                           patchTarget */*fallthroughOverride*/,
+                           patchTarget */*targetOverride*/) {
   assert(0 && "Deprecated!");
   return false;
-#if 0
-    assert(fallthroughOverride == NULL);
-
-    Address targetAddr = targetOverride ? targetOverride->get_address() : 0;
-    long newOffset = 0;
-    Address to;
-
-    if (insn.isThunk()) {
-    }
-    else if (insn.isUncondBranch()) {
-        // unconditional pc relative branch.
-
-#if defined(os_vxworks)
-        if (!targetOverride) relocationTarget(origAddr, &targetAddr);
-#endif
-
-        // This was a check in old code. Assert it isn't the case,
-        // since this is a _conditional_ branch...
-        assert(insn.isInsnType(Bmask, BCAAmatch) == false);
-
-        // We may need an instPoint for liveness calculations
-
-        instPoint *point = gen.func()->findInstPByAddr(origAddr);
-        if (!point)
-            point = instPoint::createArbitraryInstPoint(origAddr,
-                                                        gen.addrSpace(),
-                                                        gen.func());
-        gen.setPoint(point);
-
-
-        if (targetAddr) {
-            generateBranch(gen,
-                           relocAddr,
-                           targetAddr,
-                           IFORM_LK(insn));
-        }
-        else {
-            generateBranch(gen,
-                           relocAddr,
-                           insn.getTarget(origAddr),
-                           IFORM_LK(insn));
-        }
-    }
-    else if (insn.isCondBranch()) {
-        // conditional pc relative branch.
-#if defined(os_vxworks)
-        if (!targetOverride) relocationTarget(origAddr, &targetAddr);
-#endif
-
-        if (!targetAddr) {
-          newOffset = origAddr - relocAddr + insn.getBranchOffset();
-          to = origAddr + insn.getBranchOffset();
-        } else {
-	  newOffset = targetAddr - relocAddr;
-          to = targetAddr;
-        }
-    }
-    else {
-#if defined(os_vxworks)
-        if (relocationTarget(origAddr + 2, &targetAddr)) DFORM_SI_SET(insn, targetAddr);
-#endif
-        generate(gen,insn);
-    }
-    return true;
-#endif
 }
 
 bool insnCodeGen::generateMem(codeGen &,
@@ -454,13 +385,53 @@ bool insnCodeGen::modifyJump(Address target,
     return true;
 }
 
+/* TODO and/or FIXME
+ * The logic used by this function is common across architectures but is replicated in architecture-specific manner in all codegen-* files.
+ * This means that the logic itself needs to be refactored into the (platform independent) codegen.C file. Appropriate architecture-specific,
+ * bit-twiddling functions can then be defined if necessary in the codegen-* files and called as necessary by the common, refactored logic.
+*/
 bool insnCodeGen::modifyJcc(Address target,
 			    NS_aarch64::instruction &insn,
 			    codeGen &gen) {
     long disp = target - gen.currAddr();
 
     if(ABS(disp) > MAX_CBRANCH_OFFSET) {
-        //TODO
+        const unsigned char *origInsn = insn.ptr();
+        Address origFrom = gen.currAddr();
+
+        /*
+         * A conditional branch of the form
+         *    b.cond A
+         * C: ...next insn...:
+         *  gets converted to
+         *    b.cond B
+         *    b      C
+         * B: b      A
+         * C: ...next insn...
+         */
+
+        //Store start index of code buffer to later calculate how much the original instruction's will have moved
+        codeBufIndex_t startIdx = gen.getIndex();
+
+        /* Generate the --b.cond B-- instruction. Directly modifying the offset bits of the instruction passed since other bits are to remain the same anyway.
+           B will be 4 bytes from the next instruction. */
+        instruction newInsn(insn);
+        INSN_SET(newInsn, 5, 23, 0x1);
+        generate(gen, newInsn);
+
+        /* Generate the --b C-- instruction. C will be 4 bytes from the next instruction, hence offset for this instruction is set to 1.
+          (it will get multiplied by 4 by the CPU) */
+        newInsn.clear();
+        INSN_SET(newInsn, 0, 25, 0x1);
+        INSN_SET(newInsn, 26, 31, 0x05);
+        generate(gen, newInsn);
+
+        /* Generate the final --b A-- instruction.
+         * The 'from' address to be passed in to generateBranch is now several bytes (8 actually, but I'm not hardcoding this) ahead of the original 'from' address.
+         * So adjust it accordingly.*/
+        codeBufIndex_t curIdx = gen.getIndex();
+        Address newFrom = origFrom + (unsigned)(curIdx - startIdx);
+        insnCodeGen::generateBranch(gen, newFrom, target);
     } else {
         instruction condBranchInsn(insn);
 
