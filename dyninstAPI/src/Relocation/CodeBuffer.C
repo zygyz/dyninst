@@ -113,11 +113,11 @@ bool CodeBuffer::BufferElement::generate(CodeBuffer *buf,
    gen.copy(buffer_);
 
    if (patch_) {
-      // Now things get interesting
-      if (!patch_->apply(gen, buf)) {
-	relocation_cerr << "Patch failed application, ret false" << endl;
-         return false;
-      }
+        // Now things get interesting
+        if (!patch_->apply(gen, buf)) {
+	        relocation_cerr << "Patch failed application, ret false" << endl;
+            return false;
+        }
    }
    unsigned newSize = gen.getDisplacement(start, gen.getIndex());
    if (newSize > size_) {

@@ -83,6 +83,7 @@ bool InstWidgetPatch::apply(codeGen &gen, CodeBuffer *) {
 
    gen.registerInstrumentation(tramp, gen.currAddr());
    bool ret = tramp->generateCode(gen, gen.currAddr());
+   relocation_cerr << __func__ << " ret " << ret << endl;
    return ret;
 }
 

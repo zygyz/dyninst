@@ -428,7 +428,7 @@ bool baseTramp::generateSaves(codeGen &gen,
 bool baseTramp::generateRestores(codeGen &gen,
         registerSpace *)
 {
-    return true;
+     return gen.codeEmitter()->emitBTRestores(this, gen);
 }
 
 

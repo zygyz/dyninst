@@ -177,7 +177,10 @@ bool CodeMover::initialize(const codeGen &templ) {
 bool CodeMover::relocate(Address addr) {
    addr_ = addr;
 
-   if (!buffer_.generate(addr)) return false;
+   if (!buffer_.generate(addr)) {
+        std::cout << __func__ << " returning false" << std::endl;
+       return false;
+   }
    return true;
 }
 

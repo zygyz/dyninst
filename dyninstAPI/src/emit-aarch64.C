@@ -384,7 +384,7 @@ bool EmitterAARCH64::emitBTSaves(baseTramp* bt, codeGen &gen) {
             continue;
         num_to_save++;
     }
-    std::cout << "num_to_save " << num_to_save << " createFrame is " << createFrame << std::endl;
+
     if (createFrame) {
         num_to_save++;
     }
