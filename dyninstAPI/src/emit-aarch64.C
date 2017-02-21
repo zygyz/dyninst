@@ -322,6 +322,18 @@ void EmitterAARCH64::emitLoadOrigRegister(Address register_num, Register destina
         }
         return;
     }
+
+    if (src->spilledState == registerSlot::unspilled) {
+        //assert(register_num != REGNUM_EFLAGS);
+        std::cout << __func__ << " unspilled " << std::endl;
+        emitMoveRegToReg((Register) register_num, destination, gen);
+        return;
+    }
+
+    //stackItemLocation loc = getHeightOf(stackItem(RealRegister(register_num)), gen);
+    //registerSlot *stack = (*gen.rs())[loc.reg];
+    //emitLoadRelative(dest->encoding(), loc.offset, stack->encoding(), gen.addrSpace()->getAddressWidth(), gen);
+    gen.markRegDefined(destination);
     return;
 }
 

@@ -36,7 +36,14 @@ class AddressSpace;
 class codeGen;
 
 class insnCodeGen {
-public:
+
+    public:    
+    enum MoveOp {
+        MovOp_MOVK = 0xE5,
+        MovOp_MOVN = 0x25,
+        MovOp_MOVZ = 0xA5
+    };
+
     static instructUnion *insnPtr(codeGen &gen);
     //static instructUnion *ptrAndInc(codeGen &gen);
 
@@ -170,12 +177,11 @@ public:
     static bool modifyData(Address target,
                            NS_aarch64::instruction &insn,
                            codeGen &gen);
-
-    enum MoveOp {
-        MovOp_MOVK = 0xE5,
-        MovOp_MOVN = 0x25,
-        MovOp_MOVZ = 0xA5
-    };
+    //enum MoveOp {
+      //  MovOp_MOVK = 0xE5,
+       // MovOp_MOVN = 0x25,
+       // MovOp_MOVZ = 0xA5
+    //};
 };
 
 #endif
