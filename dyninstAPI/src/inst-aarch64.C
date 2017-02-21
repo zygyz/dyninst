@@ -832,18 +832,13 @@ bool writeFunctionPtr(AddressSpace *p, Address addr, func_instance *f)
 
 Emitter *AddressSpace::getEmitter()
 {
-    static EmitterAARCH64Dyn emitter64Dyn;
     static EmitterAARCH64Stat emitter64Stat;
+	static EmitterAARCH64Dyn emitter64Dyn;
 
-    if (getAddressWidth() == 8) {
-        if (proc()) {
-            return &emitter64Dyn;
-        }
-        else return &emitter64Stat;
-    }
+	if(proc())
+		return &emitter64Dyn;
 
-    assert(0);
-    return NULL;
+	return &emitter64Stat;
 }
 
 #define GET_IP      0x429f0005
