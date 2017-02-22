@@ -224,11 +224,11 @@ bool EmitterAARCH64::emitMoveRegToReg(Register src, Register dest, codeGen &gen)
     Register tmp_src = src;
     return true;
 }
-
+/*
 bool EmitterAARCH64::emitMoveRegToReg(registerSlot *source, registerSlot *dest, codeGen &gen) {
     return emitMoveRegToReg(source->encoding(), dest->encoding(), gen);
 }
-
+*/
 void EmitterAARCH64::emitOp(unsigned opcode, Register dest, Register src1, Register src2, codeGen &gen)
 {
     assert(0);
