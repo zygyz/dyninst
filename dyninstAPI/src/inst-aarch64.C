@@ -125,6 +125,7 @@ void registerSpace::initialize64() {
                                              registerSlot::liveAlways,
                                              registerSlot::FPR));
     }
+    registerSpace::createRegisterSpace64(registers);
 
     done = true;
 }
@@ -862,12 +863,16 @@ bool EmitterAARCH64::emitCallRelative(Register dest, Address offset, Register ba
     assert(0); //Not implemented
     return true;
 }
-
+/*
+bool EmitterAARCH64::emitCallRelative(Register dest, Address offset, Register base, codeGen &gen) {
+    assert(0); //Not implemented
+    return true;
+}
+*/
 bool EmitterAARCH64::emitLoadRelative(Register dest, Address offset, Register base, int size, codeGen &gen) {
     assert(0); //Not implemented
     return true;
 }
-
 
 void EmitterAARCH64::emitStoreRelative(Register source, Address offset, Register base, int size, codeGen &gen) {
     //return true;
