@@ -483,9 +483,13 @@ bitArray instPoint::liveRegisters(){
 	static LivenessAnalyzer live1(4);
 	static LivenessAnalyzer live2(8);
 	LivenessAnalyzer *live;
+        std::cout << "liveRegs_.size() " << liveRegs_.size() << std::endl;
+        std::cout << " " << live->getABI()->getAllRegs().size() << std::endl;
+
 	if (func()->function()->region()->getAddressWidth() == 4) live = &live1; else live = &live2;
 	if (liveRegs_.size() && liveRegs_.size() == live->getABI()->getAllRegs().size()){
-		return liveRegs_;
+        std::cout << "liveRegs_.size() " << liveRegs_.size() << std::endl;
+        return liveRegs_;
 	}	
 	switch(type()) {
 		case FuncEntry:

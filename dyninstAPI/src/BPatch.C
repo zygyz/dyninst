@@ -271,7 +271,8 @@ void BPatch::setLivenessAnalysis(bool x)
     livenessAnalysisOn_ = x;
 }
 bool BPatch::livenessAnalysisOn() {
-    return livenessAnalysisOn_;
+//    return livenessAnalysisOn_;
+    return false;
 }
 
 void BPatch::setLivenessAnalysisDepth(int x)
