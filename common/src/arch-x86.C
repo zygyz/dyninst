@@ -4825,7 +4825,7 @@ static ia32_entry sseMap[][4] = {
     { e_psubd, t_sse_mult, SSEFA_66, true, { Vdq, Wdq, Zz }, 0, s1RW2R, 0 },
     { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
   },
-  { /* SSEFB */ // FIXME: Same????
+  { /* SSEFB */
     { e_psubd, t_done, 0, true, { Pq, Qq, Zz }, 0, s1RW2R, 0 },
     { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
     { e_psubd, t_sse_mult, SSEFB_66, true, { Vdq, Wdq, Zz }, 0, s1RW2R, 0 },
@@ -6874,7 +6874,7 @@ ia32_entry sseMapMult[][3] =
   }, { /* SSEFB_66 */
     { e_vpsubq, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
     { e_vpsubq, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
-    { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 }
+    { e_vpsubq, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
   }, { /* SSEFC_66 */
     { e_vpaddb, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
     { e_vpaddb, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
