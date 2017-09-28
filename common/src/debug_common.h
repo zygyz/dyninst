@@ -59,6 +59,17 @@ COMMON_EXPORT int dwarf_printf_int(const char *format, ...);
 
 COMMON_EXPORT int translate_printf_int(const char *format, ...);
 
+#if defined(__GNUC__)
+#define decode_printf(format, ...)                                       \
+   do {                                                                 \
+      decode_printf_int("[%s:%u] " format, __FILE__, __LINE__, ## __VA_ARGS__); \
+   } while (0)
+#else
+#define decode_printf decoding_printf_int
+#endif
+
+COMMON_EXPORT int decode_printf_int(const char* format, ...);
+
 // And initialization
 COMMON_EXPORT bool init_debug_common();
 

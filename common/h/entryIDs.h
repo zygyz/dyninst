@@ -1102,6 +1102,7 @@ enum entryID {
   e_vpabsq,
   e_vmovntdqa,
   e_vpbroadcastmb2q,
+  e_vpbroadcastmw2d,
   e_vpmovwb,
   e_vpmovdb,
   e_vpmovqb,
