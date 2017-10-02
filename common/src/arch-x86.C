@@ -5864,7 +5864,7 @@ static ia32_entry sseMapTer[][3] =
         { e_roundpd, t_done, 0, true, { Vdq, Wdq, Ib }, 0, s1W2R3R, 0 }
     }, { /* SSET0A */
         { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
-        { e_No_Entry, t_sse_ter_mult, SSET0A_66, false, { Zz, Zz, Zz }, 0, 0, 0 },
+        { e_roundss, t_sse_ter_mult, SSET0A_66, true, { Vss, Wss, Ib }, 0, 0, 0 },
         { e_roundss, t_done, 0, true, { Vss, Wss, Ib }, 0, s1W2R3R, 0 },
     }, { /* SSET0B */
         { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
@@ -6235,7 +6235,7 @@ ia32_entry sseMapMult[][3] =
   }, { /* SSE2E_66 */
     { e_vucomisd, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
     { e_vucomisd, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
-    { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 }
+    { e_vucomisd, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
   }, { /* SSE2E_NO */
     { e_vucomiss, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
     { e_vucomiss, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R, 0 },
@@ -7631,8 +7631,8 @@ ia32_entry sseMapTerMult[][3] =
         { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
         { e_vrndscaless, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R4R, 0 }
     }, { /* SSET0B_66 */
-        { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
-        { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
+        { e_vrndscalesd, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R4R, 0 },
+        { e_vrndscalesd, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R4R, 0 },
         { e_vrndscalesd, t_done, 0, true, { Vps, Hps, Wps }, 0, s1W2R3R4R, 0 }
     }, { /* SSET0C_66 */
         { e_No_Entry, t_ill, 0, false, { Zz, Zz, Zz }, 0, 0, 0 },
@@ -7853,8 +7853,8 @@ static ia32_entry sseGrpMap[][2] = {
   },
   /* G13SSE000A */
   {
-    { e_No_Entry, t_ill, 0, true, { Zz, Zz, Zz }, 0, 0, 0 },
-    { e_No_Entry, t_ill, 0, true, { Zz, Zz, Zz }, 0, 0, 0 }
+    { e_vpslld, t_done, 0, true, { Vps, Ib, Wps }, 0, s1RW2R3R, 0 },
+    { e_vpslld, t_done, 0, true, { Vps, Ib, Wps }, 0, s1RW2R3R, 0 }
   },
   /* G13SSE010B */
   {
@@ -8544,10 +8544,11 @@ int getOperSz(const ia32_prefixes &pref)
  */
 ia32_instruction& ia32_decode(unsigned int capa, const unsigned char* addr, ia32_instruction& instruct)
 {
+    // decode_printf("Decode: %x %x %x %x %x %x ...",
+    //         addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
     const unsigned char* addr_orig = addr; /* The original start to this instruction (addr will change) */
     ia32_prefixes& pref = instruct.prf; /* A reference to the prefix information for this instruction */
     ia32_entry *gotit = NULL; /* A pointer to the descriptor for the decoded instruction */
-    decode_printf("hello");
 
     /* If we are being assed to decode memory accesses, then instrut.mac must not be null. */  
     if(capa & IA32_DECODE_MEMACCESS)
@@ -8558,8 +8559,10 @@ ia32_instruction& ia32_decode(unsigned int capa, const unsigned char* addr, ia32
     /* First decode any prefixes for this instruction */
     if (!ia32_decode_prefixes(addr, instruct)) 
     {
+        decode_printf("--> PREFIX DECODE FAILURE.\n");
+
         instruct.size = 1;
-	     instruct.entry = NULL;
+	    instruct.entry = NULL;
         instruct.legacy_type = ILLEGAL;
         return instruct;
     }
@@ -8574,9 +8577,12 @@ ia32_instruction& ia32_decode(unsigned int capa, const unsigned char* addr, ia32
     {
         if(opcode_decoding > 0)
         {
+            decode_printf("FPU DECODE SUCCESS.\n");
             /* FPU decoding success. Return immediately */
             return instruct;
         }
+
+        decode_printf("--> OPCODE DECODE FAILURE.\n");
 
         /* Opcode decoding failed */
         instruct.entry = NULL;
@@ -8835,12 +8841,17 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
     ia32_entry* gotit = NULL;
     int condbits = 0;
     bool vextab = false; /* Did we end in a VEX table? */
+    /* Opcode used for debugging purposes */
+    unsigned int _opcode = 0;
 
     /* Is there a VEX prefix for this instruction? */
     if(pref.vex_present)
     {
+        decode_printf("\tVEX INSTRUCTION PRESENT\n");
+
         /* Grab the opcode for the index */
         idx = addr[0];
+        _opcode = idx;
 
         /* Move past the opcode for this instruction */
         instruct.size += 1;
@@ -8852,6 +8863,7 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                 /* This is a VEX2 prefixed instruction -- start in the twoByteMap */
                 gotit = &twoByteMap[idx];
                 sseidx = vex3_simdop_convert[0][pref.vex_pp];
+                decode_printf("\t\tStarting in twoByteMap sseidx=%d\n\n", sseidx);
                 break;
 
             case VEX_TYPE_VEX3:
@@ -8862,16 +8874,20 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     case 1:
                         gotit = &twoByteMap[idx];
                         sseidx = vex3_simdop_convert[0][pref.vex_pp];
+                        decode_printf("\t\tStarting in twoByteMap with sseidx=%d\n", sseidx);
                         break;
                     case 2:
                         gotit = &threeByteMap[idx];
                         sseidx = vex3_simdop_convert[1][pref.vex_pp];
+                        decode_printf("\t\tStarting in threeByteMap sseidx=%d\n", sseidx);
                         break;
                     case 3:
                         gotit = &threeByteMap2[idx];
                         sseidx = vex3_simdop_convert[2][pref.vex_pp];
+                        decode_printf("\t\tStarting in threeByteMap2 sseidx=%d\n", sseidx);
                         break;
                     default:
+                        decode_printf("\t\tINVALID MM VALUE\n");
                         instruct.legacy_type = ILLEGAL;
                         instruct.entry = NULL;
                         return -1;
@@ -8891,16 +8907,21 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
 
         nxtab = gotit->otable;
     } else {
+
         /* Non VEX instruction */
         table = t_oneB;
 
         /* Adjust the idx */
         idx = addr[0];
+        _opcode = idx;
         instruct.size += 1;
         addr += 1;
 
         gotit = &oneByteMap[idx];
         nxtab = gotit->otable;
+
+        decode_printf("\t\tStarting in oneByteMap: %x ssePrefix=%x\n", 
+                _opcode, pref.getOpcodePrefix());
     }
 
     if(capa & IA32_DECODE_CONDITION)
@@ -8917,6 +8938,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
         switch(table)
         {
             case t_twoB:
+                decode_printf("\t\ttwoByeMap: %x\n", *addr);
+                _opcode = *addr;
                 idx = addr[0];
                 gotit = &twoByteMap[idx];
                 nxtab = gotit->otable;
@@ -8926,6 +8949,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     condbits = idx & 0x0F;
                 break;
             case t_threeB:
+                decode_printf("\t\tthreeByteMap: %x\n", *addr);
+                _opcode = *addr;
                 idx = addr[0];
                 gotit = &threeByteMap[idx];
                 nxtab = gotit->otable;
@@ -8935,6 +8960,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     condbits = idx & 0x0F;
                 break;
             case t_threeB2:
+                decode_printf("\t\tthreeByeMap2: %x\n", *addr);
+                _opcode = *addr;
                 idx = addr[0];
                 gotit = &threeByteMap2[idx];
                 nxtab = gotit->otable;
@@ -8944,6 +8971,9 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     condbits = idx & 0x0F;
                 break;
             case t_sse:
+                decode_printf("\t\tsseMap: Opcode=%x\n", _opcode);
+
+
                 /* Decode the sse prefix for this type */
                 switch(pref.getOpcodePrefix())
                 {
@@ -8970,6 +9000,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     nxtab = t_done;
                 break;
             case t_sse_mult:
+                decode_printf("\t\tsseMultMap Opcode=%x\n", _opcode);
+
                 if(!pref.vex_present)
                     assert(!"Entered VEX SSE MULT table when no VEX present.");
                 idx = gotit->tabidx;
@@ -8978,6 +9010,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                 vextab = true;
                 break;
             case t_sse_bis:
+                decode_printf("\t\tsseBisMap Opcode=%x\n", _opcode);
+                
                 /* Decode the sse prefix for this type */
                 switch(pref.getOpcodePrefix())
                 {
@@ -9004,6 +9038,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     nxtab = t_done;
                 break;
             case t_sse_bis_mult:
+                decode_printf("\t\tsseBisMultMap Opcode=%x\n", _opcode);
+
                 if(!pref.vex_present)
                     assert(!"Entered VEX BIS MULT table when no VEX present.");
                 idx = gotit->tabidx;
@@ -9013,6 +9049,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
 
                 break;
             case t_sse_ter:
+                decode_printf("\t\tsseTerMap Opcode=%x\n", _opcode);
+
                 /* Decode the sse prefix for this type */
                 switch(pref.getOpcodePrefix())
                 {
@@ -9036,6 +9074,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     nxtab = t_done;
                 break;
             case t_sse_ter_mult:
+                decode_printf("\t\tsseMapTerMult Opcode=%x\n", _opcode);
+
                 if(!pref.vex_present)
                     assert(!"Entered VEX TER MULT table when no VEX present.");
 
@@ -9050,8 +9090,11 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     idx = gotit->tabidx;
                     unsigned int reg  = (addr[0] >> 3) & 7;
                     vextab = true;
+
                     if(idx < Grp12)
                     {
+                        decode_printf("\t\tgroupMap group=%d reg=%d Opcode=%x\n", idx + 1, reg, _opcode);
+
                         switch(idx)
                         {
                             case Grp2:
@@ -9071,12 +9114,16 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                         }
                     } else {
                         unsigned int mod = addr[0] >> 6;
+                        decode_printf("\t\tgroupMap2 group=%d reg=%d mod==3? %s\n", 
+                                idx - Grp12, reg, mod == 3 ? "yes" : "no");
+
                         gotit = &groupMap2[idx-Grp12][mod==3][reg];
                         nxtab = gotit->otable;
                     }
                     break;
                 }
             case t_grpsse:
+
                 switch(pref.getOpcodePrefix())
                 {
                     case 0x00:
@@ -9092,13 +9139,17 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                         break;
                 }
 
-                // sseidx >>= 1;
                 idx = gotit->tabidx;
                 vextab = true;
                 if(pref.vex_present)
+                {
+                    decode_printf("\t\tsseVexGrpMap Opcode=%x idx=%x sseidx=%x\n", 
+                            _opcode, idx, sseidx);
                     gotit = &sseVexGrpMap[idx][sseidx];
-                else
+                } else {
+                    decode_printf("\t\tsseGrpMap Opcode=%x\n", _opcode);
                     gotit = &sseGrpMap[idx][sseidx];
+                }
 
                 nxtab = gotit->otable;
                 break;
@@ -9130,6 +9181,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     nxtab = t_done;
                     break;
                 }
+
+                decode_printf("\t\tvex2Map (LL table) vex.ll=%d\n", pref.vex_ll);
 
                 /* Whats the index into the vex2 table? */
                 idx = gotit->tabidx;
@@ -9165,6 +9218,7 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                     return -1;
                 }
 
+                decode_printf("\t\tvexWMap (W table) vex.w=%d\n", pref.vex_w);
                 /* Set the current entry */
                 gotit = &vexWMap[idx][pref.vex_w];
                 /* Set the next table - this is almost always t_done */
@@ -9208,6 +9262,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                 vextab = true;
                 break;
             case t_ill:
+                decode_printf("\t\tIllegal Opcode.\n");
+
                 /* Illegal or unknown instruction */
                 instruct.legacy_type = ILLEGAL;
                 instruct.entry = gotit;
@@ -9217,6 +9273,8 @@ int ia32_decode_opcode(unsigned int capa, const unsigned char* addr,
                 assert(!"wrong table");
         }
     }
+
+    decode_printf("\t\tTable stage complete.\n");
 
     /* We should have a valid decoding or we should have returned by now */
     assert(gotit != NULL);
@@ -10307,6 +10365,8 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
       {
          case PREFIX_REPNZ:
          case PREFIX_REP:
+            decode_printf("\tREP/REPZ prefix\n");
+
             if(mode_64 && REX_ISREX(addr[1]) 
                   && is_sse_opcode(addr[2],addr[3],addr[4])) 
             {
@@ -10323,6 +10383,7 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
             break;
 
          case PREFIX_LOCK:
+            decode_printf("\tLOCK prefix\n");
             ++pref.count;
             pref.prfx[0] = addr[0];
             break;
@@ -10333,27 +10394,33 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
          case PREFIX_SEGES:
          case PREFIX_SEGFS:
          case PREFIX_SEGGS:
+            decode_printf("\tSEG prefix\n");
             ++pref.count;
             pref.prfx[1] = addr[0];
             break;
 
          case PREFIX_SZOPER:
+            decode_printf("\tSZOPER prefix\n");
             pref.opcode_prefix = addr[0];
             ++pref.count;
             pref.prfx[2] = addr[0];
             break;
 
          case PREFIX_SZADDR:
+            decode_printf("\tSZADDR prefix\n");
             ++pref.count;
             pref.prfx[3] = addr[0];
             break;
 
          case PREFIX_XOP:
             /* FIXME: XOP instruction are not supported! */
+            decode_printf("\tXOP prefix\n");
             err = true;
             break;
 
          case PREFIX_EVEX:
+            decode_printf("\tEVEX (AVX512) prefix %x %x %x %x\n",
+                    addr[0], addr[1], addr[2], addr[3]);
             pref.vex_present = true;
             pref.vex_type = VEX_TYPE_EVEX;
             memmove(&pref.vex_prefix, addr + 1, 3);
@@ -10371,12 +10438,14 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
             pref.vex_aaa = EVEXGET_AAA(pref.vex_prefix[2]);
             pref.count += 4;
 
-            /* VEX_LL must be 0, 1, or 2 */
-            if(pref.vex_ll >= 3 || pref.vex_ll < 0)
-            {
-               err = true;
-               break;
-            }
+
+            /* VEX_LL must be 0, 1, or 2 or LIG */
+            // if(pref.vex_ll >= 3 || pref.vex_ll < 0)
+            // {
+               // decode_printf("\tVEX LL invalid (%u)\n", pref.vex_ll);
+               // err = true;
+               // break;
+            // }
 
             switch(pref.vex_pp)
             {
@@ -10400,6 +10469,7 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
             if(((pref.vex_prefix[0] & (unsigned int)(0x03 << 2)) != 0)
                   || ((pref.vex_prefix[1] & (unsigned int)(1 << 2)) == 0))
             {
+               decode_printf("\tAVX-512 constant bits not valid.\n");
                err = true;
                break;
             }
@@ -10409,6 +10479,7 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
             break;
 
          case PREFIX_VEX3:
+            decode_printf("\tVEX3 prefix\n");
             pref.vex_present = true;
             pref.vex_type = VEX_TYPE_VEX3;
             memmove(&pref.vex_prefix, addr + 1, 2);
@@ -10446,6 +10517,7 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
             in_prefix = false;
             break;
          case PREFIX_VEX2:
+            decode_printf("\tVEX2 prefix\n");
             pref.vex_present = true;
             pref.vex_type = VEX_TYPE_VEX2;
             pref.vex_prefix[0] = addr[1]; /* Only 1 byte for VEX2 */
@@ -10489,6 +10561,7 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
             {
                if(ia32_decode_rex(addr, pref, loc))
                {
+                  decode_printf("\tREX prefix\n");
                   in_prefix = false;
                   break;
                }
@@ -10498,6 +10571,8 @@ bool ia32_decode_prefixes(const unsigned char* addr, ia32_instruction& instruct)
                   /* We probably hit the opcode now */
                   in_prefix = false;
                } else  {
+                  decode_printf("\tREX prefix\n");
+
                   /* We hit a REX prefix, but we are skipping it. */
                   ++pref.count;
                }
