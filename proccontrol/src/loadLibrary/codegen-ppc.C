@@ -12,7 +12,7 @@ using namespace std;
 
 // User code can use up to 228 bytes under the stack pointer;
 // we skip past this so that we don't mess things up. 
-#define STACKSKIP 228
+#define STACKSKIP 512 
 
 bool Codegen::generateCallPPC32(Address addr, const std::vector<Address> &args) {
    // PPC32 on Linux is basically the same thing as x86; we do indirect because
