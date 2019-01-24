@@ -41,29 +41,6 @@ struct Var {
     for (typename Unknowns::const_iterator i = rhs.unknowns.begin();
 	 i != rhs.unknowns.end(); ++i) {
       unknowns[i->first] += i->second;
-    }
-    return *this;
-  }
-
-  Var<T> &operator+=(const int &rhs) {
-    x += rhs;
-    return *this;
-  }
-
-  Var<T> operator+(const Var<T> &rhs) const {
-    Var<T> tmp = *this;
-    tmp += rhs;
-    return tmp;
-  }
-
-  Var<T> operator+(const int &rhs) const {
-    Var<T> tmp = *this;
-    tmp += rhs;
-    return tmp;
-  }
-
-  Var<T> operator*=(const int &rhs) {
-    if (rhs == 0) { 
       unknowns.clear();
       x = 0;
     } 
