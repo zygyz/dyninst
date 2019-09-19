@@ -662,9 +662,6 @@ bool BinaryEdit::writeFile(const std::string &newFileName)
          }
       }
       
-      pdvector<Symbol *> newSyms;
-      buildDyninstSymbols(newSyms, newSec, symObj->getOrCreateModule("dyninstInst",
-                                                                     lowWaterMark_));
       for (unsigned i = 0; i < newSyms.size(); i++) {
          symObj->addSymbol(newSyms[i]);
       }
@@ -691,6 +688,8 @@ bool BinaryEdit::writeFile(const std::string &newFileName)
          showErrorCallback(109, Symtab::printError(lastError));
          return false;
       }
+   free(chunks.first);  
+   free(chunks.second);
    return true;
 }
 
