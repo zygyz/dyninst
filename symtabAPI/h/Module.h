@@ -66,20 +66,42 @@ namespace Dyninst{
 					line_(line),
 					column_(col)
 			{
+                dyninst_file_name_ = std::string("<unknown file>");
+                instrument_point_addr_ = 0;
+			}
+
+			Statement(int file_index, unsigned int line, uint64_t ipa, unsigned int col = 0,
+					  Offset start_addr = (Offset) -1L, Offset end_addr = (Offset) -1L) :
+					AddressRange(start_addr, end_addr),
+					file_index_(file_index),
+					line_(line),
+					column_(col),
+                    instrument_point_addr_(ipa)
+			{
+                dyninst_file_name_ = std::string("<unknown file>");
 			}
 
 			unsigned int file_index_; // Maybe this should be module?
 			unsigned int line_;
 			unsigned int column_;
 			StringTablePtr strings_;
+            std::string dyninst_file_name_;
+            uint64_t instrument_point_addr_;  
+
 		public:
 			StringTablePtr getStrings_() const;
 
 			void setStrings_(StringTablePtr strings_);
 
+            void setFileName_(std::string filename_);
+
+            void setInstPointAddr_(uint64_t point_addr_);
+
+
 		public:
 
-			Statement() : AddressRange(0,0), file_index_(0), line_(0), column_(0)  {}
+			Statement() : AddressRange(0,0), file_index_(0), line_(0), column_(0)  { dyninst_file_name_ = std::string("<unknown file>"); instrument_point_addr_ = 0;}
+
 			struct StatementLess {
 				bool operator () ( const Statement &lhs, const Statement &rhs ) const;
 			};
@@ -103,9 +125,12 @@ namespace Dyninst{
 			unsigned int getFileIndex() const { return file_index_; }
 			unsigned int getLine()const {return line_;}
 			unsigned int getColumn() const { return column_; }
+            uint64_t getInstPointAddr() const { return instrument_point_addr_; }
 			struct addr_range {};
 			struct line_info {};
 			struct upper_bound {};
+            
+            void setLine(unsigned int line) { line_ = line; }
 
 			typedef Statement* Ptr;
 			typedef const Statement* ConstPtr;
@@ -212,8 +237,15 @@ namespace Dyninst{
 			bool getSourceLines(std::vector<LineNoTuple> &lines,
 								Offset addressInRange);
 			bool getStatements(std::vector<Statement::Ptr> &statements);
+
 			LineInformation *getLineInformation();
+
+            bool parseDyninstLineInformation();
+
+            bool getDyninstLines(std::vector<Statement::Ptr>& dynLines);
+
 			LineInformation* parseLineInformation();
+            
 
 			bool setDefaultNamespacePrefix(std::string str);
 
@@ -251,11 +283,20 @@ namespace Dyninst{
 		public:
 			StringTablePtr & getStrings() ;
 
+            bool dyninstLineMapParsed() { return dyninst_linemap_parsed; } 
+
+
 		private:
 			bool ranges_finalized;
 
 			void finalizeOneRange(Address ext_s, Address ext_e) const;
+
+            bool dyninst_linemap_parsed;
+
+            std::string getDyninstFileName(size_t index);
+
 		};
+
 		template <typename OS>
 		OS& operator<<(OS& os, const Module& m)
 		{

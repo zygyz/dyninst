@@ -58,13 +58,29 @@ bool LineInformation::addLine( unsigned int lineSource,
       Offset lowInclusiveAddr, 
       Offset highExclusiveAddr ) 
 {
-    Statement* the_stmt = new Statement(lineSource, lineNo, lineOffset,
+    Statement* the_stmt = new Statement(lineSource, lineNo, 0, lineOffset,
                                         lowInclusiveAddr, highExclusiveAddr);
     Statement::Ptr insert_me(the_stmt);
     insert_me->setStrings_(strings_);
-   return insert( insert_me).second;
+   return insert( insert_me).second; 
 
 } /* end setLineToAddressRangeMapping() */
+
+
+bool LineInformation::addLine( unsigned int lineSource,
+      unsigned int lineNo, 
+      unsigned int lineOffset, 
+      Offset lowInclusiveAddr, 
+      Offset highExclusiveAddr,
+      uint64_t instPointAddr) 
+{
+    Statement* the_stmt = new Statement(lineSource, lineNo, instPointAddr, lineOffset,
+                                        lowInclusiveAddr, highExclusiveAddr);
+    Statement::Ptr insert_me(the_stmt);
+    insert_me->setStrings_(strings_);
+   return insert( insert_me).second; 
+} 
+
 bool LineInformation::addLine( std::string lineSource,
                                unsigned int lineNo,
                                unsigned int lineOffset,
@@ -109,7 +125,7 @@ bool LineInformation::getSourceLines(Offset addressInRange,
     const_iterator end_addr_valid = impl_t::upper_bound(addressInRange );
     while(start_addr_valid != end_addr_valid && start_addr_valid != end())
     {
-        if(*(*start_addr_valid) == addressInRange)
+        if(*(*start_addr_valid) == addressInRange) 
         {
             lines.push_back(*start_addr_valid);
         }

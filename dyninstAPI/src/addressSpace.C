@@ -758,7 +758,7 @@ func_instance *AddressSpace::findOnlyOneFunction(const string &name,
 
    pdvector<func_instance *> allFuncs;
 
-   if (!findFuncsByAll(name.c_str(), allFuncs, lib.c_str()))
+   if (!findFuncsByAll(name.c_str(), allFuncs, lib.c_str())) 
       return NULL;
 
    if (allFuncs.size() > 1) 

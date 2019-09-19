@@ -65,15 +65,24 @@ StringTablePtr Statement::getStrings_() const {
 void Statement::setStrings_(StringTablePtr strings) {
     Statement::strings_ = strings;
 }
+
+void Statement::setFileName_(std::string filename) {
+    dyninst_file_name_ = filename;     
+}
+
+void Statement::setInstPointAddr_(uint64_t point_addr) {
+    instrument_point_addr_ = point_addr;
+}
+
 const std::string& Statement::getFile() const {
     if(strings_) {
         if(file_index_ < strings_->size()) {
             // can't be ->[] on shared pointer to multi_index container or compiler gets confused
             return (*strings_)[file_index_].str;
-
+        } else if (file_index_ >= DYNINST_STR_TBL_FID_OFFSET) {
+            return dyninst_file_name_;
         }
-
-    }
+    } // we assume that strings_ is always not null  
     // This string will be pointed to, so it has to persist.
     static std::string emptyStr;
     return emptyStr;
@@ -187,6 +196,19 @@ bool Module::getAddressRanges(std::vector<AddressRange >&ranges,
    return false;
 }
 
+std::string Module::getDyninstFileName(size_t index) {
+    Symtab* symObj = exec();
+    if (symObj == NULL) {
+        cerr << "Module::getDyninstFileName: cannot get Symtab*  " << endl;
+        return "<unknown file>";
+    }
+    if (index >= symObj->getAllFileNames().size()) {
+        cerr << "Module::getDyninstFileName: " << "  index " << index << " out of range " << endl;
+        return "<unknown file>";
+    }
+    return (symObj->getAllFileNames()).at(index);
+}
+
 bool Module::getSourceLines(std::vector<Statement::Ptr> &lines, Offset addressInRange)
 {
    unsigned int originalSize = lines.size();
@@ -195,9 +217,20 @@ bool Module::getSourceLines(std::vector<Statement::Ptr> &lines, Offset addressIn
    if (lineInformation)
       lineInformation->getSourceLines( addressInRange, lines );
 
-   if ( lines.size() != originalSize )
+   if ( lines.size() != originalSize ) {
+       /* we check if the file index refers to our string table */
+      auto stmt = lines[originalSize];  
+      auto file_index = stmt->getFileIndex();
+      auto inst_point_addr = stmt->getInstPointAddr();
+      std::stringstream buffer;
+      buffer << std::hex << ":0x" << inst_point_addr;
+      if (file_index >= DYNINST_STR_TBL_FID_OFFSET) {
+          file_index -= DYNINST_STR_TBL_FID_OFFSET; 
+          // we should set the dyninst file name here
+          stmt->setFileName_(getDyninstFileName(file_index) + buffer.str()); // record the file name 
+      } 
       return true;
-
+   }
    return false;
 }
 
@@ -206,16 +239,44 @@ bool Module::getSourceLines(std::vector<LineNoTuple> &lines, Offset addressInRan
    unsigned int originalSize = lines.size();
 
     LineInformation *lineInformation = parseLineInformation();
-
-//    cout << "Module " << fileName() << " searching for line info in " << lineInformation << endl;
-   if (lineInformation)
+   if (lineInformation) {
       lineInformation->getSourceLines( addressInRange, lines );
+   }
 
-   if ( lines.size() != originalSize )
+   if ( lines.size() != originalSize ) {
+      auto stmt = lines[originalSize]; 
+      auto file_index = stmt.getFileIndex();
+      auto inst_point_addr = stmt.getInstPointAddr();
+      if (file_index >= DYNINST_STR_TBL_FID_OFFSET) {
+          file_index -= DYNINST_STR_TBL_FID_OFFSET;
+          lines[originalSize].setFileName_(getDyninstFileName(file_index));  
+      }
       return true;
-   
+   }
    return false;
 }
+
+// parse the line information stored in .dyninstLineMap
+bool Module::parseDyninstLineInformation()  
+{
+    Symtab* symObj = exec();
+    if (symObj == NULL) {
+        cerr << "Module::parseDyninstLineInformation - symtab is null " << endl;
+        return false;
+    }
+    vector<LineMapInfoEntry> linemap = symObj->getAllRelocatedSymbols();
+    // we still insert these to leverage the multi-index lookup data structure 
+    for (int i = 0; i < linemap.size(); ++i) {
+       lineInfo_->addLine(linemap[i].file_index,  // here the file index is with offset
+                          linemap[i].line_number,
+                          linemap[i].column_number,
+                          linemap[i].low_addr_inc,
+                          linemap[i].high_addr_exc,
+                          linemap[i].inst_point_addr);      
+    }
+    return linemap.size() > 0;
+}
+
 
 LineInformation *Module::parseLineInformation() {
     if (exec()->getArchitecture() != Arch_cuda &&
@@ -246,6 +307,10 @@ LineInformation *Module::parseLineInformation() {
     } else if (!lineInfo_) {
         objectLevelLineInfo = true;
         lineInfo_ = exec()->getObject()->parseLineInfoForObject(strings_);
+    } 
+    if (dyninst_linemap_parsed == false) {
+        parseDyninstLineInformation(); // read the extra .dyninstLineMap section, propagate the line map info into the lineInfo_ that should have already been created
+        dyninst_linemap_parsed = true;
     }
     return lineInfo_;
 }
@@ -377,6 +442,7 @@ Module::Module() :
    strings_(new StringTable),
     ranges_finalized(false)
 {
+    dyninst_linemap_parsed = false;
 }
 
 Module::Module(const Module &mod) :
@@ -395,6 +461,7 @@ Module::Module(const Module &mod) :
     ranges_finalized(mod.ranges_finalized)
 
 {
+    dyninst_linemap_parsed = false;
 }
 
 Module::~Module()
@@ -545,12 +612,10 @@ void Module::finalizeRanges()
 void Module::finalizeOneRange(Address ext_s, Address ext_e) const {
     ModRange* r = new ModRange(ext_s, ext_e, const_cast<Module*>(this));
     ModRangeLookup* lookup = exec_->mod_lookup();
-//    cout << "Inserting range " << std::hex << (*r) << std::dec << endl;
     lookup->insert(r);
 }
 
 void Module::addDebugInfo(Module::DebugInfoT info) {
-//    cout << "Adding CU DIE to " << fileName() << endl;
     info_.push_back(info);
 
 }
@@ -558,4 +623,3 @@ void Module::addDebugInfo(Module::DebugInfoT info) {
 StringTablePtr & Module::getStrings() {
     return strings_;
 }
-

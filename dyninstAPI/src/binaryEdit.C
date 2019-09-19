@@ -31,14 +31,12 @@
 // $Id: binaryEdit.C,v 1.26 2008/10/28 18:42:44 bernat Exp $
 
 #include "binaryEdit.h"
-#include "common/src/headers.h"
 #include "mapped_object.h"
 #include "mapped_module.h"
 #include "debug.h"
 #include "os.h"
 #include "instPoint.h"
 #include "function.h"
-
 using namespace Dyninst::SymtabAPI;
 
 // #define USE_ADDRESS_MAPS
@@ -342,7 +340,7 @@ BinaryEdit *BinaryEdit::openFile(const std::string &file,
                        FILE__, __LINE__, file.c_str());
         return NULL;
     }
-
+    mapped_object * tmp = newBinaryEdit->mobj;        
     /* PatchAPI stuffs */
     if (!mgr) {
        newBinaryEdit->initPatchAPI();
@@ -504,8 +502,6 @@ void addTrapTable_win(newSectionPtr, Address tableAddr)
 bool BinaryEdit::writeFile(const std::string &newFileName) 
 {
    // Step 1: changes. 
-
-
       inst_printf(" writing %s ... \n", newFileName.c_str());
 
       Symtab *symObj = mobj->parse_img()->getObject();
@@ -518,12 +514,12 @@ bool BinaryEdit::writeFile(const std::string &newFileName)
 
       if( symObj->isStaticBinary() && isDirty() ) {
          if( !doStaticBinarySpecialCases() ) {
-	   cerr << "Failed to write file " << newFileName << ": static binary handler failed" << endl;
-	   return false;
+	        cerr << "Failed to write file " << newFileName << ": static binary handler failed" << endl;
+	        return false;
          }
       }
 
-   delayRelocation_ = false;
+      delayRelocation_ = false;
       relocate();
       
       vector<Region*> oldSegs;
@@ -662,10 +658,19 @@ bool BinaryEdit::writeFile(const std::string &newFileName)
          }
       }
       
+      pdvector<Symbol *> newSyms;
+      buildDyninstSymbols(newSyms, newSec, symObj->getOrCreateModule("dyninstInst",
+                                                                     lowWaterMark_));
+      
+
       for (unsigned i = 0; i < newSyms.size(); i++) {
          symObj->addSymbol(newSyms[i]);
       }
-      
+
+      pdvector<std::pair<Address, SymtabAPI::LineNoTuple> > newLineMap;
+      buildInstrumentedLineMap(newLineMap);
+         
+      auto chunks = symObj->addDyninstLineInfo(newLineMap); 
       // Okay, now...
       // Hand textSection and newSection to DynSymtab.
         
@@ -819,6 +824,109 @@ void BinaryEdit::addLibraryPrereq(std::string libname) {
 }
 
 
+// Helper function to build linemap for relocated instructions 
+// The output is a vector of <address, line info> pair 
+// suppose two adjacent pairs p1, p2, then the range of address [p1.address, p2.address) maps to p1.line_info
+// in terms of the last pair pl, the range of address [pl.address, infty) maps to pl.line_info 
+// With this additional dyninst linemap, when emitting the binary, we could add another sections to store the correspondance. And in the getSourceLines function, we implement additional piece of code to check the existance of added section 
+void BinaryEdit::buildLineMapReloc(pdvector<std::pair<Address, SymtabAPI::LineNoTuple> > & newLineMap, Address origAddr, Address relocAddr, unsigned strandSize, const Relocation::TrackerElement * tracker) 
+{
+    SymtabAPI::Module* module = tracker->func()->mod()->pmod()->mod();
+    std::vector<SymtabAPI::LineNoTuple> lines;
+    Address cur_orig_addr;
+    Address cur_reloc_addr;
+    Address key_addr;
+    int last_file_index = -1;
+    int last_line = -1;
+    int last_column = -1;
+    
+    for (unsigned offset = 0; offset < strandSize; ++offset) {
+        // do for each byte of the instruction
+        cur_orig_addr = (Address)((uint64_t)origAddr + offset);
+        cur_reloc_addr = (Address)((uint64_t)relocAddr + offset);
+        lines.clear();
+        module->getSourceLines(lines, cur_orig_addr);
+        if (lines.size() != 0) {
+            SymtabAPI::LineNoTuple stmt = lines[0];
+            int cur_file_index = (int)stmt.getFileIndex();
+            int cur_line = (int)stmt.getLine();
+            int cur_column = (int)stmt.getColumn(); 
+            if (cur_file_index == last_file_index && cur_line == last_line && 
+                    cur_column == last_column) {
+                // the instruction byte at curr_origAddr is associated with the same source code location
+                continue;
+            } else {
+                stmt.setInstPointAddr_(origAddr);
+                last_file_index = cur_file_index;
+                last_line = cur_line;
+                last_column = cur_column;
+                newLineMap.push_back(std::make_pair(cur_reloc_addr, stmt)); 
+            }
+        }
+    }
+}
+
+/* Helper function for building the mapping of instrumentation code back to the source code. To distinguish it from 
+ * the original code, add a line offset to the line number
+ */
+void BinaryEdit::buildLineMapInst(pdvector<std::pair<Address, SymtabAPI::LineNoTuple> > & newLineMap, Address origAddr, Address relocAddr, unsigned strandSize, const Relocation::TrackerElement * tracker) 
+{
+    SymtabAPI::Module* module = tracker->func()->mod()->pmod()->mod();
+    std::vector<SymtabAPI::LineNoTuple> lines;
+    Address cur_orig_addr;
+    Address cur_reloc_addr;
+    Address key_addr;
+    int last_file_index = -1;
+    int last_line = -1;
+    int last_column = -1;
+    module->getSourceLines(lines, origAddr);
+    if (lines.size() != 0) {
+        SymtabAPI::LineNoTuple stmt = lines[0];
+        stmt.setInstPointAddr_(origAddr);
+        newLineMap.push_back(std::make_pair(relocAddr, stmt)); 
+    }  
+}
+
+
+// Build a list of linemaps for instrumented binary
+// each instruction address in the instrumented binary gets its linemap in the original binary 
+
+void BinaryEdit::buildInstrumentedLineMap(pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap)
+{
+   for (CodeTrackers::iterator i = relocatedCode_.begin();
+        i != relocatedCode_.end(); ++i) {
+      Relocation::CodeTracker *CT = *i;
+      Address orig_addr;
+      Address reloc_addr; 
+      unsigned strand_size; // the size of the strand of the instruction to be relocated 
+      for (Relocation::CodeTracker::TrackerList::const_iterator iter = CT->trackers().begin();
+           iter != CT->trackers().end(); ++iter) {
+            const Relocation::TrackerElement *tracker = *iter;
+            func_instance *tfunc = tracker->func();
+            orig_addr = tracker->orig(); // get the address of the start of the instruction strand in the original binary to be relocated
+            reloc_addr = tracker->reloc(); //get the start address of the relocated strand
+            strand_size = tracker->size();
+            switch(tracker->type()) {
+                case Relocation::TrackerElement::original: 
+                    buildLineMapReloc(newLineMap, orig_addr, reloc_addr, strand_size, tracker); 
+                    break;
+                case Relocation::TrackerElement::emulated:
+                    buildLineMapReloc(newLineMap, orig_addr, reloc_addr, strand_size, tracker);
+                    break;
+                case Relocation::TrackerElement::instrumentation:
+                    buildLineMapInst(newLineMap, orig_addr, reloc_addr, strand_size, tracker);
+                    break;
+                case Relocation::TrackerElement::padding:
+                    cerr << "padding?" << endl;
+                    break;
+                default:
+                    cout << "??" << endl;
+                    break;
+            }
+        }  
+   }
+}
+
 // Build a list of symbols describing instrumentation and relocated functions. 
 // To keep this list (somewhat) short, we're doing one symbol per extent of 
 // instrumentation + relocation for a particular function. 
@@ -840,11 +948,12 @@ void BinaryEdit::buildDyninstSymbols(pdvector<Symbol *> &newSyms,
       func_instance *currFunc = NULL;
       Address start = 0;
       unsigned size = 0;
-      
+      Address orig_loc = 0;
+      unsigned orig_size = 0;
+//    CT->debug(); 
       for (Relocation::CodeTracker::TrackerList::const_iterator iter = CT->trackers().begin();
            iter != CT->trackers().end(); ++iter) {
          const Relocation::TrackerElement *tracker = *iter;
-         
          func_instance *tfunc = tracker->func();
          
          if (currFunc != tfunc) {
@@ -854,10 +963,9 @@ void BinaryEdit::buildDyninstSymbols(pdvector<Symbol *> &newSyms,
                // currfunc set
                // start set
                size = tracker->reloc() - start;
-               
                std::string name = currFunc->prettyName();
                name.append("_dyninst");
-               
+                  
                Symbol *newSym = new Symbol(name.c_str(),
                                            Symbol::ST_FUNCTION,
                                            Symbol::SL_GLOBAL,
@@ -868,7 +976,10 @@ void BinaryEdit::buildDyninstSymbols(pdvector<Symbol *> &newSyms,
                                            size);                                        
                newSyms.push_back(newSym);
             }
+
             currFunc = tfunc;
+            orig_loc = tracker->orig();
+            orig_size = tracker->size();  
             start = tracker->reloc();
             size = 0;
          }
