@@ -265,6 +265,7 @@ void IndirectControlFlowAnalyzer::ReadTable(AST::Ptr jumpTargetExpr,
             parsing_printf("WARNING: resolving jump tables leads to junk instruction from %lx\n", jtrv.targetAddress);
             break;
         }
+        parsing_printf("\t index %d, target %lx\n", v, jtrv.targetAddress);
 	    jumpTargets.insert(jtrv.targetAddress);
 	} else {
 	    // We have a bad entry. We stop here, as we have wrong information
@@ -322,6 +323,9 @@ bool IndirectControlFlowAnalyzer::FindJunkInstruction(Address addr) {
 
     while (!ahPtr->hasCFT()) {
         Instruction i = ahPtr->current_instruction();
+        if (i.getOperation().getID() == e_No_Entry) {
+            return true;
+        }
         if (i.size() == 2 && i.rawByte(0) == 0x00 && i.rawByte(1) == 0x00) {
             return true;
         }

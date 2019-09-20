@@ -177,6 +177,9 @@ Parser::parse()
     parsing_printf("[%s:%d] parse() called on Parser %p with state %d\n",
                    FILE__,__LINE__,this, _parse_state);
 
+    if(_parse_state == UNPARSEABLE)
+        return;
+
     // For modification: once we've full-parsed once, don't do it again
     if (_parse_state >= COMPLETE) return;
 
@@ -464,6 +467,17 @@ Parser::ProcessOneFrame(ParseFrame* pf, bool recursive) {
 }
 
 LockFreeQueueItem<ParseFrame *> *Parser::postProcessFrame(ParseFrame *pf, bool recursive) {
+
+     /* Should not resume frames in this function,
+      * because the resumed frames may be being parsed
+      * by other threads. Then if this thread pick up
+      * the resumed frame, this thread will give up 
+      * parsing because the frame is being parsed.
+      * Then the delayed work is not going to be parsed
+      * because delayed work is only moved to work queue
+      * when a thread resumes parsing a function.
+      */
+
     LockFreeQueue<ParseFrame*> work;
     switch(pf->status()) {
         case ParseFrame::CALL_BLOCKED: {
@@ -495,7 +509,6 @@ LockFreeQueueItem<ParseFrame *> *Parser::postProcessFrame(ParseFrame *pf, bool r
                     work.insert(tf);
 
             }
-            resumeFrames(pf->func, work);
             break;
         }
         case ParseFrame::PARSED:{
@@ -509,9 +522,6 @@ LockFreeQueueItem<ParseFrame *> *Parser::postProcessFrame(ParseFrame *pf, bool r
                 // or trigger parsing in a separate target CodeObject
                 tamper_post_processing(work,pf);
             }
-
-            /* add waiting frames back onto the worklist */
-            resumeFrames(pf->func, work);
 
             pf->cleanup();
             break;
@@ -556,9 +566,6 @@ LockFreeQueueItem<ParseFrame *> *Parser::postProcessFrame(ParseFrame *pf, bool r
                 assert(0 && "Delayed frame with no delayed work");
             }
 
-            /* if the return status of this function has been updated, add
-             * waiting frames back onto the work list */
-            resumeFrames(pf->func, work);
             break;
         }
         case ParseFrame::PROGRESS:
@@ -817,12 +824,16 @@ void Parser::cleanup_frames()  {
    - Prepare and record FuncExtents for range-based lookup
 */
 
-void
+// This function returns false if it flips tail call determination of an edge,
+// and thus needs to re-finalize the function boundary.
+//
+// Returns true if it is done and finalized the function
+bool
 Parser::finalize(Function *f)
 {
     boost::lock_guard<Function> g(*f);
     if(f->_cache_valid) {
-        return;
+        return true;
     }
 
     if(!f->_parsed) {
@@ -848,34 +859,54 @@ Parser::finalize(Function *f)
                    FILE__,f->name().c_str(),f->addr());
 
 
-    // finish delayed parsing and sorting
+    // Determine function boundary
     Function::blocklist blocks = f->blocks_int();
 
     // Check whether there are tail calls to blocks within the same function
     dyn_hash_map<Block*, bool> visited;
     for (auto bit = blocks.begin(); bit != blocks.end(); ++bit) {
         Block * b = *bit;
-	visited[b] = true;
-    }
-    int block_cnt = 0;
-    for (auto bit = blocks.begin(); bit != blocks.end(); ++bit) {
-        Block * b = *bit;
-	block_cnt++;
-	for (auto eit = b->targets().begin(); eit != b->targets().end(); ++eit) {
-	    ParseAPI::Edge *e = *eit;
-	    if (e->interproc() && (e->type() == DIRECT || e->type() == COND_TAKEN)) {
-	        if (visited.find(e->trg()) != visited.end() && e->trg() != f->entry()) {
-		    // Find a tail call targeting a block within the same function.
-		    // If the jump target is the function entry,
-		    // it is a recursive tail call.
-		    // Otherwise,  this edge is not a tail call
-		    e->_type._interproc = false;
-		    parsing_printf("from %lx to %lx, marked as not tail call\n", b->last(), e->trg()->start());
-		}
-	    }
-	}
+        visited[b] = true;
     }
 
+    int block_cnt = 0;
+    for (auto bit = blocks.begin(); bit != blocks.end(); ++bit) {
+         Block * b = *bit;
+         block_cnt++;
+         for (auto eit = b->targets().begin(); eit != b->targets().end(); ++eit) {
+             ParseAPI::Edge *e = *eit;
+             if (!e->sinkEdge() && e->interproc() && (e->type() == DIRECT || e->type() == COND_TAKEN)) {
+                 if (visited.find(e->trg()) != visited.end() && e->trg() != f->entry()) {
+                     // Find a tail call targeting a block within the same function.
+                     // If the jump target is the function entry,
+                     // it is a recursive tail call.
+                     // Otherwise,  this edge is not a tail call
+                     e->_type._interproc = false;
+                     parsing_printf("from %lx to %lx, marked as not tail call (part of the function), re-finalize\n", b->last(), e->trg()->start());
+                     return false;
+                 }
+                 Block * trg_block = e->trg();
+                 bool only_incoming = true;
+                 for (auto seit = trg_block->sources().begin(); seit != trg_block->sources().end(); ++seit)
+                     if (*seit != e) {
+                         only_incoming = false;
+                         break;
+                     }
+                 // If the target block has only this incoming edge,
+                 // and it is an entry of a discovered function,
+                 // we do not treat it as a tail call.
+                 // Just treat it as part of this function.
+                 Function *trg_func = findFuncByEntry(trg_block->region(), trg_block->start());
+                 if (trg_func && trg_func->src() != HINT && only_incoming && trg_func->region() == b->region()) {
+                     e->_type._interproc = false;
+                     parsing_printf("from %lx to %lx, marked as not tail call (single entry), re-finalize\n", b->last(), e->trg()->start());
+                     return false;
+                 }
+             }
+         }
+    }
+
+    
     // Check whether the function contains only one block,
     // and the block contains only an unresolve indirect jump.
     // If it is the case, change the edge to tail call if necessary.
@@ -887,17 +918,18 @@ Parser::finalize(Function *f)
     // not mark the edge as tail call
     if (block_cnt == 1) {
         Block *b = f->entry();
-	Block::Insns insns;
-	b->getInsns(insns);
-	if (insns.size() == 1 && insns.begin()->second.getCategory() == c_BranchInsn) {
-	    for (auto eit = b->targets().begin(); eit != b->targets().end(); ++eit) {
+        Block::Insns insns;
+        b->getInsns(insns);
+        if (insns.size() == 1 && insns.begin()->second.getCategory() == c_BranchInsn) {
+            for (auto eit = b->targets().begin(); eit != b->targets().end(); ++eit) {
                 ParseAPI::Edge *e = *eit;
-		if (e->type() == INDIRECT || e->type() == DIRECT) {
-		    e->_type._interproc = true;
-    		    parsing_printf("from %lx to %lx, marked as tail call\n", b->last(), e->trg()->start());
-    		}
-	    }
-	}
+                if (!e->interproc() && (e->type() == INDIRECT || e->type() == DIRECT)) {
+                    e->_type._interproc = true;
+                    parsing_printf("from %lx to %lx, marked as tail call (jump at entry), re-finalize\n", b->last(), e->trg()->start());
+                    return false;
+                }
+            }
+        }
     }
 
     // is this the first time we've parsed this function?
@@ -909,7 +941,7 @@ Parser::finalize(Function *f)
 
     if(blocks.empty()) {
         f->_cache_valid = cache_value; // see above
-        return;
+        return true;
     }
 
     auto bit = blocks.begin();
@@ -966,6 +998,7 @@ Parser::finalize(Function *f)
             }
         }
     }
+    return true;
 }
 
 void
@@ -1578,7 +1611,9 @@ Parser::parse_frame_one_iteration(ParseFrame &frame, bool recursive) {
             auto work_ah = work->ah();
             parsing_printf("... continue parse indirect jump at %lx\n", work_ah->getAddr());
             ProcessCFInsn(frame,NULL,work->ah());
-            frame.value_driven_jump_tables.insert(work_ah->getAddr());
+            // We only re-parse jump tables
+            if (!work_ah->isTailCall(frame.func, INDIRECT, frame.num_insns, frame.knownTargets))
+                frame.value_driven_jump_tables.insert(work_ah->getAddr());
             continue;
         }
             // call fallthrough case where we have already checked that
@@ -2498,6 +2533,8 @@ void Parser::resumeFrames(Function * func, LockFreeQueue<ParseFrame *> & work)
              fIter != vec.end();
              ++fIter) {
             work.insert(*fIter);
+            Function *f = (*fIter)->func;
+            parsing_printf("\t undelay function %s at %lx, frame delay work size %d\n", f->name().c_str(), f->addr(), (*fIter)->delayedWork.size()); 
         }
         // remove func from delayedFrames map
         delayed_frames.frames.erase(func);
