@@ -913,7 +913,7 @@ void BinaryEdit::buildLineMapInst(
  * gets its linemap in the original binary 
  */
 void BinaryEdit::buildInstrumentedLineMap(
-        pdvector<std::pair<Address, SymtabAPI::LineNoTuplek>& newLineMap)
+        pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap)
 {
   for (const auto& codeTracker : relocatedCode_) {
     Address origAddr;
@@ -937,8 +937,8 @@ void BinaryEdit::buildInstrumentedLineMap(
                             relocAddr, strandSize, trackerElement);
           break;
         case Relocation::TrackerElement::padding:
-          fprintf(stderr, "case Relocation::TrackerElement::padding
-                           is not porcessed\n");
+          fprintf(stderr, "case Relocation::TrackerElement::padding "
+                           "is not porcessed\n");
           break;
         default:
           fprintf(stderr, "unknown case\n");
