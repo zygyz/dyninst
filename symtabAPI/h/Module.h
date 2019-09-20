@@ -70,15 +70,17 @@ namespace Dyninst{
                 instrument_point_addr_ = 0;
 			}
 
-			Statement(int file_index, unsigned int line, uint64_t ipa, unsigned int col = 0,
-					  Offset start_addr = (Offset) -1L, Offset end_addr = (Offset) -1L) :
-					AddressRange(start_addr, end_addr),
-					file_index_(file_index),
-					line_(line),
-					column_(col),
-                    instrument_point_addr_(ipa)
+			Statement(int file_index, unsigned int line, uint64_t ipa, 
+                      unsigned int col = 0,
+					  Offset start_addr = (Offset) -1L, 
+                      Offset end_addr = (Offset) -1L) :
+					  AddressRange(start_addr, end_addr),
+					  file_index_(file_index),
+					  line_(line),
+					  column_(col),
+                      instrument_point_addr_(ipa)
 			{
-                dyninst_file_name_ = std::string("<unknown file>");
+              dyninst_file_name_ = std::string("<unknown file>");
 			}
 
 			unsigned int file_index_; // Maybe this should be module?
@@ -93,14 +95,18 @@ namespace Dyninst{
 
 			void setStrings_(StringTablePtr strings_);
 
-            void setFileName_(std::string filename_);
+            void setFileName(const std::string& filename);
 
-            void setInstPointAddr_(uint64_t point_addr_);
+            void setInstPointAddr(const uint64_t& point_addr);
 
 
 		public:
 
-			Statement() : AddressRange(0,0), file_index_(0), line_(0), column_(0)  { dyninst_file_name_ = std::string("<unknown file>"); instrument_point_addr_ = 0;}
+			Statement() : AddressRange(0,0), file_index_(0), 
+                          line_(0), column_(0)  { 
+                dyninst_file_name_ = std::string("<unknown file>"); 
+                instrument_point_addr_ = 0;
+            }
 
 			struct StatementLess {
 				bool operator () ( const Statement &lhs, const Statement &rhs ) const;
@@ -130,7 +136,7 @@ namespace Dyninst{
 			struct line_info {};
 			struct upper_bound {};
             
-            void setLine(unsigned int line) { line_ = line; }
+            void setLine(const unsigned int& line) { line_ = line; }
 
 			typedef Statement* Ptr;
 			typedef const Statement* ConstPtr;
@@ -283,7 +289,7 @@ namespace Dyninst{
 		public:
 			StringTablePtr & getStrings() ;
 
-            bool dyninstLineMapParsed() { return dyninst_linemap_parsed; } 
+            bool dyninstLineMapParsed() { return dyninst_linemap_parsed_; } 
 
 
 		private:
@@ -291,7 +297,7 @@ namespace Dyninst{
 
 			void finalizeOneRange(Address ext_s, Address ext_e) const;
 
-            bool dyninst_linemap_parsed;
+            bool dyninst_linemap_parsed_;
 
             std::string getDyninstFileName(size_t index);
 

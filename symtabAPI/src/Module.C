@@ -66,11 +66,11 @@ void Statement::setStrings_(StringTablePtr strings) {
     Statement::strings_ = strings;
 }
 
-void Statement::setFileName_(std::string filename) {
+void Statement::setFileName(const std::string& filename) {
     dyninst_file_name_ = filename;     
 }
 
-void Statement::setInstPointAddr_(uint64_t point_addr) {
+void Statement::setInstPointAddr(const uint64_t& point_addr) {
     instrument_point_addr_ = point_addr;
 }
 
@@ -199,11 +199,9 @@ bool Module::getAddressRanges(std::vector<AddressRange >&ranges,
 std::string Module::getDyninstFileName(size_t index) {
     Symtab* symObj = exec();
     if (symObj == NULL) {
-        cerr << "Module::getDyninstFileName: cannot get Symtab*  " << endl;
         return "<unknown file>";
     }
     if (index >= symObj->getAllFileNames().size()) {
-        cerr << "Module::getDyninstFileName: " << "  index " << index << " out of range " << endl;
         return "<unknown file>";
     }
     return (symObj->getAllFileNames()).at(index);
@@ -227,7 +225,8 @@ bool Module::getSourceLines(std::vector<Statement::Ptr> &lines, Offset addressIn
       if (file_index >= DYNINST_STR_TBL_FID_OFFSET) {
           file_index -= DYNINST_STR_TBL_FID_OFFSET; 
           // we should set the dyninst file name here
-          stmt->setFileName_(getDyninstFileName(file_index) + buffer.str()); // record the file name 
+          stmt->setFileName(getDyninstFileName(file_index) + buffer.str()); 
+          // record the file name 
       } 
       return true;
    }
@@ -309,7 +308,9 @@ LineInformation *Module::parseLineInformation() {
         lineInfo_ = exec()->getObject()->parseLineInfoForObject(strings_);
     } 
     if (dyninst_linemap_parsed == false) {
-        parseDyninstLineInformation(); // read the extra .dyninstLineMap section, propagate the line map info into the lineInfo_ that should have already been created
+        parseDyninstLineInformation(); 
+        // read the extra .dyninstLineMap section, propagate the line map 
+        // info into the lineInfo_ that should have already been created
         dyninst_linemap_parsed = true;
     }
     return lineInfo_;

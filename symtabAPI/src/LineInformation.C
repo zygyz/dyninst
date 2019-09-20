@@ -67,14 +67,15 @@ bool LineInformation::addLine( unsigned int lineSource,
 } /* end setLineToAddressRangeMapping() */
 
 
-bool LineInformation::addLine( unsigned int lineSource,
-      unsigned int lineNo, 
-      unsigned int lineOffset, 
-      Offset lowInclusiveAddr, 
-      Offset highExclusiveAddr,
-      uint64_t instPointAddr) 
+bool LineInformation::addLine(unsigned int lineSource,
+                              unsigned int lineNo, 
+                              unsigned int lineOffset, 
+                              Offset lowInclusiveAddr, 
+                              Offset highExclusiveAddr,
+                              uint64_t instPointAddr) 
 {
-    Statement* the_stmt = new Statement(lineSource, lineNo, instPointAddr, lineOffset,
+    Statement* the_stmt = new Statement(lineSource, lineNo, 
+                                        instPointAddr, lineOffset,
                                         lowInclusiveAddr, highExclusiveAddr);
     Statement::Ptr insert_me(the_stmt);
     insert_me->setStrings_(strings_);

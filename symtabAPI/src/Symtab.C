@@ -2373,9 +2373,12 @@ bool Symtab::getTruncateLinePaths()
 
 void Symtab::extractDyninstLineInfo()  
 {
-    DyninstLineInfoManager mngr(this); // create the manager   
-    vAllRelocatedSymbols_ = mngr.readLineMapInfo(); // read the line map information 
-    vAllFileNames_ = mngr.readStringTable();  // read the string table 
+    // create the manager   
+    DyninstLineInfoManager mngr(this); 
+    // read the line map information 
+    vAllRelocatedSymbols_ = mngr.readLineMapInfo();
+    // read the string table 
+    vAllFileNames_ = mngr.readStringTable();  
 }
 
 
@@ -3607,20 +3610,25 @@ SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager() {
     symtab_ = NULL;
 }
 
-SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager(SymtabAPI::Symtab* symtab) {
+SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager(
+        SymtabAPI::Symtab* symtab) {
    symtab_ = symtab;
 }
 
-SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager( // Constructor 
+SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager( 
         SymtabAPI::Symtab* symtab, 
         std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& linemap) {
     symtab_ = symtab;
     newLineMap_ = linemap;
-    /* preprocess the linemap vector, such that we assign each file name with our own file index */
-    uint32_t file_id = DYNINST_STR_TBL_FID_OFFSET; // starting with the offset so that we know this is our own id
+    // preprocess the linemap vector, such that we assign each file name 
+    // with our own file index 
+    // starting with the offset so that we know this is our own id
+    uint32_t file_id = DYNINST_STR_TBL_FID_OFFSET; 
     for (const auto& item : newLineMap_) {
        auto filename = item.second.getFile();
-       if (fileMap_.find(filename) != fileMap_.end()) {//have already seen this file, lets make sure we don't create duplicate 
+       if (fileMap_.find(filename) != fileMap_.end()) {
+           //have already seen this file, lets make sure we 
+           //don't create duplicate 
            continue;
        } else {
            //otherwise assign our own file id to it
@@ -3631,16 +3639,22 @@ SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager( // Constructor
 
 
 /* serialize the string table and add region */
-SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(const char* stringTableName) {
-    //serialize the string table  
+SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(
+        const char* stringTableName) {
+    // serialize the string table  
     assert(symtab_ != NULL);
     std::vector<std::pair<std::string, uint32_t> > tmp_vec;
     uint32_t chunk_size = 0;
     for (auto& item : fileMap_) {
         tmp_vec.push_back(item);
-        chunk_size += item.first.length() + 1; // accumulate the total number of bytes for string table 
+        chunk_size += item.first.length() + 1; 
+        // accumulate the total number of bytes for string table 
     }    
-    sort(tmp_vec.begin(), tmp_vec.end(), [](const std::pair<std::string, uint32_t>& v1, const std::pair<std::string, uint32_t>& v2) { return v1.second < v2.second; }); // sort the filename by its file id
+    // sort the filename by its file id
+    sort(tmp_vec.begin(), tmp_vec.end(), 
+            [](const std::pair<std::string, uint32_t>& v1, 
+              const std::pair<std::string, uint32_t>& v2) { 
+            return v1.second < v2.second; }); 
     std::string table;
     table.reserve(chunk_size);
     for (auto& item : tmp_vec) {
@@ -3653,8 +3667,10 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(const char* stringT
         cerr << "calloc for string table failed " << endl;
         exit(-1);
     }
-    memcpy(chunk, (char*)&chunk_size, sizeof(uint32_t)); // copy the chunk size to the head of chunk
-    memcpy((char*)chunk + sizeof(uint32_t), table.c_str(), table.length()); // copy the string table to the chunk
+    // copy the chunk size to the head of chunk
+    memcpy(chunk, (char*)&chunk_size, sizeof(uint32_t)); 
+    // copy the string table to the chunk
+    memcpy((char*)chunk + sizeof(uint32_t), table.c_str(), table.length()); 
     symtab_->addRegion(0,
                        chunk,
                        chunk_size, 
@@ -3664,7 +3680,8 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(const char* stringT
     return chunk;   
 }
 
-SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoManager::readStringTable(const char* stringTableName) {
+SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoManager::readStringTable(
+        const char* stringTableName) {
     assert(symtab_ != NULL);
     Region* stringTableSec = NULL;
     symtab_->findRegion(stringTableSec, stringTableName);
@@ -3696,10 +3713,12 @@ SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoManager::readStringTable(c
 }
 
 /* serialize the line map records and add region */
-SYMTAB_EXPORT void* DyninstLineInfoManager::writeLineMapInfo(const char* lineMapName) {
+SYMTAB_EXPORT void* DyninstLineInfoManager::writeLineMapInfo(
+        const char* lineMapName) {
     assert(symtab_ != NULL);
     size_t num_records = newLineMap_.size();
-    size_t chunk_size = sizeof(uint32_t) + sizeof(DyninstLineMapRecord) * num_records;
+    size_t chunk_size = sizeof(uint32_t) + 
+        sizeof(DyninstLineMapRecord) * num_records;
     void* chunk = calloc(1, chunk_size);  
     if (chunk == NULL) {
        cerr << "calloc for line map chunk failed " << endl;
@@ -3712,14 +3731,15 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeLineMapInfo(const char* lineMap
         auto stmt = newLineMap_[i].second;
         auto filename = stmt.getFile();
         if (fileMap_.find(filename) == fileMap_.end()) {
-            cerr << "canont find file " << filename << " in file map" << endl;
             continue;
         } 
         uint32_t file_index = fileMap_[filename];
         uint32_t line_number = (uint32_t)stmt.getLine();
         uint32_t column_number = (uint32_t)stmt.getColumn(); 
         uint64_t inst_point_addr = stmt.getInstPointAddr();
-        DyninstLineMapRecord rec(inst_addr, file_index, line_number, column_number, inst_point_addr);
+        DyninstLineMapRecord rec(inst_addr, file_index, 
+                                 line_number, column_number, 
+                                 inst_point_addr);
         memcpy((char*)chunk + offset, &rec, sizeof(DyninstLineMapRecord));  
         offset += sizeof(DyninstLineMapRecord);
     }
@@ -3732,38 +3752,40 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeLineMapInfo(const char* lineMap
     return chunk;
 }
 
-SYMTAB_EXPORT std::vector<LineMapInfoEntry> DyninstLineInfoManager::readLineMapInfo(const char* lineMapName) {
-    assert(symtab_ != NULL);
-    Region* linemapSec = NULL;
-    symtab_->findRegion(linemapSec, lineMapName);
-   std::vector<LineMapInfoEntry> result;
-   if (linemapSec == NULL) {
-       return result;
-   }       
-   void* rawData = linemapSec->getPtrToRawData(); // get the pointer to the chunk 
-   uint32_t num_records;
-   memcpy(&num_records, rawData, sizeof(uint32_t)); // get the number of records 
-   int offset = sizeof(uint32_t);
-   DyninstLineMapRecord rec; 
-   std::vector<DyninstLineMapRecord> tmp_vec;
-   for (int i = 0; i < num_records; ++i) {
-       memcpy(&rec, (char*)rawData + offset, sizeof(DyninstLineMapRecord));
-       offset += sizeof(DyninstLineMapRecord); 
-       tmp_vec.emplace_back(rec);
-    }
-    for (int i = 0; i < tmp_vec.size(); ++i) {
-       auto rec = tmp_vec[i];
-       unsigned int fi = (unsigned int) rec.file_index;
-       unsigned int ln = (unsigned int) rec.line_number;
-       unsigned int cn = (unsigned int) rec.column_number;
-       uint64_t ipa = (uint64_t)rec.inst_point_addr;
-       Address la = (Address) rec.addr;
-       Address hi = INT_MAX;
-       if (i < tmp_vec.size() - 1)  {
-         hi = (Address)tmp_vec[i + 1].addr;
-       }
-       LineMapInfoEntry entry(fi, ln, cn, la, hi, ipa);
-       result.emplace_back(entry);
-    } 
+SYMTAB_EXPORT 
+std::vector<LineMapInfoEntry> DyninstLineInfoManager::readLineMapInfo(
+        const char* lineMapName) {
+  assert(symtab_ != NULL);
+  Region* linemapSec = NULL;
+  symtab_->findRegion(linemapSec, lineMapName);
+  std::vector<LineMapInfoEntry> result;
+  if (linemapSec == NULL) {
     return result;
+  }       
+  void* rawData = linemapSec->getPtrToRawData(); // get the pointer to the chunk 
+  uint32_t num_records;
+  memcpy(&num_records, rawData, sizeof(uint32_t)); // get the number of records 
+  int offset = sizeof(uint32_t);
+  DyninstLineMapRecord rec; 
+  std::vector<DyninstLineMapRecord> tmp_vec;
+  for (int i = 0; i < num_records; ++i) {
+    memcpy(&rec, (char*)rawData + offset, sizeof(DyninstLineMapRecord));
+    offset += sizeof(DyninstLineMapRecord); 
+    tmp_vec.emplace_back(rec);
+  }
+  for (int i = 0; i < tmp_vec.size(); ++i) {
+    auto rec = tmp_vec[i];
+    unsigned int fi = (unsigned int) rec.file_index;
+    unsigned int ln = (unsigned int) rec.line_number;
+    unsigned int cn = (unsigned int) rec.column_number;
+    uint64_t ipa = (uint64_t)rec.inst_point_addr;
+    Address la = (Address) rec.addr;
+    Address hi = INT_MAX;
+    if (i < tmp_vec.size() - 1)  {
+      hi = (Address)tmp_vec[i + 1].addr;
+    }
+    LineMapInfoEntry entry(fi, ln, cn, la, hi, ipa);
+     result.emplace_back(entry);
+  } 
+  return result;
 }

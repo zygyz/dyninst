@@ -60,7 +60,6 @@ Instrumenter::revertReplacedFunction(PatchFunction* oldfunc) {
 
 bool
 Instrumenter::wrapFunction(PatchFunction* oldfunc, PatchFunction *newfunc, std::string name) {
-   printf("Instrumenter::wrapFunction name: %s\n", name.c_str());
    functionWraps_[oldfunc] = std::make_pair(newfunc, name);
    return true;
 }
