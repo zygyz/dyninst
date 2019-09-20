@@ -872,7 +872,7 @@ void BinaryEdit::buildLineMapReloc(
                 //associated with the same source code location
                 continue;
             } else {
-                stmt.setInstPointAddr_(origAddr);
+                stmt.setInstPointAddr(origAddr);
                 lastFileIndex = curFileIndex;
                 lastLine = curLine;
                 lastColumn = curColumn;
