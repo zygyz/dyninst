@@ -248,7 +248,7 @@ bool Module::getSourceLines(std::vector<LineNoTuple> &lines, Offset addressInRan
       auto inst_point_addr = stmt.getInstPointAddr();
       if (file_index >= DYNINST_STR_TBL_FID_OFFSET) {
           file_index -= DYNINST_STR_TBL_FID_OFFSET;
-          lines[originalSize].setFileName_(getDyninstFileName(file_index));  
+          lines[originalSize].setFileName(getDyninstFileName(file_index));  
       }
       return true;
    }
