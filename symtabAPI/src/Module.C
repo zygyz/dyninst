@@ -307,11 +307,11 @@ LineInformation *Module::parseLineInformation() {
         objectLevelLineInfo = true;
         lineInfo_ = exec()->getObject()->parseLineInfoForObject(strings_);
     } 
-    if (dyninst_linemap_parsed == false) {
+    if (dyninst_linemap_parsed_ == false) {
         parseDyninstLineInformation(); 
         // read the extra .dyninstLineMap section, propagate the line map 
         // info into the lineInfo_ that should have already been created
-        dyninst_linemap_parsed = true;
+        dyninst_linemap_parsed_ = true;
     }
     return lineInfo_;
 }
@@ -443,7 +443,7 @@ Module::Module() :
    strings_(new StringTable),
     ranges_finalized(false)
 {
-    dyninst_linemap_parsed = false;
+    dyninst_linemap_parsed_ = false;
 }
 
 Module::Module(const Module &mod) :
@@ -462,7 +462,7 @@ Module::Module(const Module &mod) :
     ranges_finalized(mod.ranges_finalized)
 
 {
-    dyninst_linemap_parsed = false;
+    dyninst_linemap_parsed_ = false;
 }
 
 Module::~Module()
