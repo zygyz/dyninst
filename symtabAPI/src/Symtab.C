@@ -2382,10 +2382,12 @@ void Symtab::extractDyninstLineInfo()
 }
 
 
-SYMTAB_EXPORT std::pair<void*, void*> Symtab::addDyninstLineInfo(std::vector<std::pair<Address, LineNoTuple>>& lineMap) {
+SYMTAB_EXPORT 
+std::pair<void*, void*> Symtab::addDyninstLineInfo(
+        std::vector<std::pair<Address, LineNoTuple>>& lineMap) {
     DyninstLineInfoManager mngr(this, lineMap); // create the manager  
-    void* lineMapChunk = mngr.writeLineMapInfo(); // write linemap 
-    void* stringTableChunk = mngr.writeStringTable(); // write string table 
+    auto lineMapChunk = mngr.writeLineMapInfo(); // write linemap 
+    auto stringTableChunk = mngr.writeStringTable(); // write string table 
     return std::make_pair(lineMapChunk, stringTableChunk);
 }
 
