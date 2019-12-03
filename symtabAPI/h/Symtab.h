@@ -70,7 +70,6 @@ class MappedFile;
 #define SYM_MAJOR DYNINST_MAJOR_VERSION
 #define SYM_MINOR DYNINST_MINOR_VERSION
 #define SYM_BETA  DYNINST_PATCH_VERSION
-#define DYNINST_STR_TBL_FID_OFFSET 2000000
 
 namespace Dyninst {
 
@@ -80,7 +79,6 @@ namespace SymtabAPI {
 
 class Archive;
 class builtInTypeCollection;
-
 class ExceptionBlock;
 class Object;
 class localVar;
@@ -686,26 +684,23 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
 };
 
 class SYMTAB_EXPORT DyninstLineInfoManager {
-        
-  public:
-    DyninstLineInfoManager(); 
-    DyninstLineInfoManager(SymtabAPI::Symtab* symtab);
-    DyninstLineInfoManager(SymtabAPI::Symtab* symtab, 
-            std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& lm);
-    public:
-        void* writeStringTable(
-                const char* stringTableName = ".dyninstStringTable");  
-        void* writeLineMapInfo(const char* lineMapName = ".dyninstLineMap");
-
-        std::vector<std::string> readStringTable(
-                const char* stringTableName = ".dyninstStringTable");
-        std::vector<LineMapInfoEntry> readLineMapInfo(
-                const char* lineMapName = ".dyninstLineMap");
-    private:
-        std::vector<std::pair<Address, SymtabAPI::LineNoTuple> > newLineMap_;
-        std::map<std::string, uint32_t> fileMap_; // initialized by constructor 
-        SymtabAPI::Symtab* symtab_;
-
+public:
+  DyninstLineInfoManager(); 
+  DyninstLineInfoManager(SymtabAPI::Symtab* symtab);
+  DyninstLineInfoManager(SymtabAPI::Symtab* symtab, 
+        std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& lineMap);
+  void* writeStringTable(const char* stringTableName = ".dyninstStringTable");  
+  void* writeLineMapInfo(const char* lineMapName = ".dyninstLineMap");
+  std::vector<std::string> readStringTable(
+          const char* stringTableName = ".dyninstStringTable");
+  std::vector<LineMapInfoEntry> readLineMapInfo(
+          const char* lineMapName = ".dyninstLineMap");
+private:
+  std::string getFileName(const SymtabAPI::LineNoTuple& stmt);
+private:
+  std::vector<std::pair<Address, SymtabAPI::LineNoTuple> > newLineMap_;
+  std::map<std::string, uint32_t> fileMap_; // initialized by constructor 
+  SymtabAPI::Symtab* symtab_;
 };
 
 /**

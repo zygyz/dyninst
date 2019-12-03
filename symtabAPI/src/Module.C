@@ -28,24 +28,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <boost/foreach.hpp>
 #include <string.h>
-#include <common/src/debug_common.h>
-#include "debug.h"
 
-#include "Annotatable.h"
-#include "Module.h"
-#include "Symtab.h"
-#include "Collections.h"
-#include "Function.h"
-#include "Variable.h"
-#include "LineInformation.h"
-#include "symutil.h"
 #include "annotations.h"
-
+#include <common/src/debug_common.h>
 #include "common/src/pathName.h"
 #include "common/src/serialize.h"
+#include "debug.h"
+#include "symutil.h"
+
+#include "Annotatable.h"
+#include "Collections.h"
+#include "Function.h"
+#include "LineInformation.h"
+#include "Module.h"
 #include "Object.h"
-#include <boost/foreach.hpp>
+#include "Symtab.h"
+#include "Variable.h"
 
 #if defined(cap_dwarf)
 #include "dwarfWalker.h"
@@ -66,26 +66,29 @@ void Statement::setStrings_(StringTablePtr strings) {
     Statement::strings_ = strings;
 }
 
-void Statement::setFileName(const std::string& filename) {
-    dyninst_file_name_ = filename;     
+void Statement::setIsInstrumentCode(bool isInstrumentCode) {
+  is_instrument_code_ = isInstrumentCode;
 }
 
-void Statement::setInstPointAddr(const uint64_t& point_addr) {
-    instrument_point_addr_ = point_addr;
+void Statement::setInstPointAddr(const uint64_t pointAddr) {
+    instrument_point_addr_ = pointAddr;
+}
+
+bool Statement::getIsInstrumentCode() const {
+  return is_instrument_code_;
 }
 
 const std::string& Statement::getFile() const {
-    if(strings_) {
-        if(file_index_ < strings_->size()) {
-            // can't be ->[] on shared pointer to multi_index container or compiler gets confused
-            return (*strings_)[file_index_].str;
-        } else if (file_index_ >= DYNINST_STR_TBL_FID_OFFSET) {
-            return dyninst_file_name_;
-        }
-    } // we assume that strings_ is always not null  
+  if(strings_) {
+    if(file_index_ < strings_->size()) {
+       // can't be ->[] on shared pointer to multi_index container 
+       // or compiler gets confused
+       return (*strings_)[file_index_].str;
+     } 
+   } // we assume that strings_ is always not null  
     // This string will be pointed to, so it has to persist.
-    static std::string emptyStr;
-    return emptyStr;
+   static std::string emptyStr;
+   return emptyStr;
 }
 
 
@@ -196,39 +199,17 @@ bool Module::getAddressRanges(std::vector<AddressRange >&ranges,
    return false;
 }
 
-std::string Module::getDyninstFileName(size_t index) {
-    Symtab* symObj = exec();
-    if (symObj == NULL) {
-        return "<unknown file>";
-    }
-    if (index >= symObj->getAllFileNames().size()) {
-        return "<unknown file>";
-    }
-    return (symObj->getAllFileNames()).at(index);
-}
-
 bool Module::getSourceLines(std::vector<Statement::Ptr> &lines, Offset addressInRange)
 {
    unsigned int originalSize = lines.size();
-
    LineInformation *lineInformation = parseLineInformation();
-   if (lineInformation)
-      lineInformation->getSourceLines( addressInRange, lines );
+
+   if (lineInformation) {
+     lineInformation->getSourceLines( addressInRange, lines );
+   }
 
    if ( lines.size() != originalSize ) {
-       /* we check if the file index refers to our string table */
-      auto stmt = lines[originalSize];  
-      auto file_index = stmt->getFileIndex();
-      auto inst_point_addr = stmt->getInstPointAddr();
-      std::stringstream buffer;
-      buffer << std::hex << ":0x" << inst_point_addr;
-      if (file_index >= DYNINST_STR_TBL_FID_OFFSET) {
-          file_index -= DYNINST_STR_TBL_FID_OFFSET; 
-          // we should set the dyninst file name here
-          stmt->setFileName(getDyninstFileName(file_index) + buffer.str()); 
-          // record the file name 
-      } 
-      return true;
+     return true;
    }
    return false;
 }
@@ -236,21 +217,14 @@ bool Module::getSourceLines(std::vector<Statement::Ptr> &lines, Offset addressIn
 bool Module::getSourceLines(std::vector<LineNoTuple> &lines, Offset addressInRange)
 {
    unsigned int originalSize = lines.size();
+   LineInformation *lineInformation = parseLineInformation();
 
-    LineInformation *lineInformation = parseLineInformation();
    if (lineInformation) {
-      lineInformation->getSourceLines( addressInRange, lines );
+     lineInformation->getSourceLines( addressInRange, lines );
    }
 
    if ( lines.size() != originalSize ) {
-      auto stmt = lines[originalSize]; 
-      auto file_index = stmt.getFileIndex();
-      auto inst_point_addr = stmt.getInstPointAddr();
-      if (file_index >= DYNINST_STR_TBL_FID_OFFSET) {
-          file_index -= DYNINST_STR_TBL_FID_OFFSET;
-          lines[originalSize].setFileName(getDyninstFileName(file_index));  
-      }
-      return true;
+     return true;
    }
    return false;
 }

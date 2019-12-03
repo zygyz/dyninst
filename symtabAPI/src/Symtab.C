@@ -3617,26 +3617,39 @@ SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager(
    symtab_ = symtab;
 }
 
+/*
+ * Build the annotated file name depending on whether the code
+ * is instrumented.
+ */
+std::string DyninstLineInfoManager::getFileName(
+        const SymtabAPI::LineNoTuple& stmt) {
+  auto fileName = stmt.getFile();
+  auto isInstrumentCode = stmt.getIsInstrumentCode();
+  if (isInstrumentCode) {
+    fileName += std::string("(dyninst-added)");
+  }
+  return fileName;
+}
+
+
 SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager( 
         SymtabAPI::Symtab* symtab, 
-        std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& linemap) {
-    symtab_ = symtab;
-    newLineMap_ = linemap;
-    // preprocess the linemap vector, such that we assign each file name 
-    // with our own file index 
-    // starting with the offset so that we know this is our own id
-    uint32_t fileId = DYNINST_STR_TBL_FID_OFFSET; 
-    for (const auto& item : newLineMap_) {
-       auto filename = item.second.getFile();
-       if (fileMap_.find(filename) != fileMap_.end()) {
-           //have already seen this file, lets make sure we 
-           //don't create duplicate 
-           continue;
-       } else {
-           //otherwise assign our own file id to it
-           fileMap_[filename] = fileId++;
-       }
-    }  
+        std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& linemap){
+  symtab_ = symtab;
+  newLineMap_ = linemap;
+  uint32_t fileId = 0; 
+  for (const auto& item : newLineMap_) {
+    auto stmt = item.second;
+    auto fileName = getFileName(stmt);
+    if (fileMap_.find(fileName) != fileMap_.end()) {
+      //have already seen this file, lets make sure we 
+      //don't create duplicate 
+      continue;
+    } else {
+      //otherwise assign our own file id to it
+      fileMap_[fileName] = fileId++;
+    }
+  }  
 }
 
 
@@ -3648,20 +3661,20 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(
     std::vector<std::pair<std::string, uint32_t> > tmpVec;
     uint32_t chunkSize = 0;
     for (auto& item : fileMap_) {
-        tmpVec.push_back(item);
-        chunkSize += item.first.length() + 1; 
-        // accumulate the total number of bytes for string table 
+      tmpVec.push_back(item);
+      chunkSize += item.first.length() + 1; 
+      // accumulate the total number of bytes for string table 
     }    
     // sort the filename by its file id
     sort(tmpVec.begin(), tmpVec.end(), 
-            [](const std::pair<std::string, uint32_t>& v1, 
-              const std::pair<std::string, uint32_t>& v2) { 
+         [](const std::pair<std::string, uint32_t>& v1, 
+            const std::pair<std::string, uint32_t>& v2) { 
             return v1.second < v2.second; }); 
     std::string table;
     table.reserve(chunkSize);
     for (auto& item : tmpVec) {
-        table += item.first;
-        table += string("|");
+      table += item.first;
+      table += string("|");
     }
     chunkSize += sizeof(uint32_t); // add the chunk size header itself  
     void* chunk = calloc(1, chunkSize);      
@@ -3684,34 +3697,34 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(
 
 SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoManager::readStringTable(
         const char* stringTableName) {
-    assert(symtab_ != NULL);
-    Region* stringTableSec = NULL;
-    symtab_->findRegion(stringTableSec, stringTableName);
-    std::vector<std::string> result;
-    if (stringTableSec == NULL) {
-        return result;
-    }       
-    void * rawData = stringTableSec->getPtrToRawData();
-    uint32_t chunkSize = 0;
-    memcpy(&chunkSize, rawData, sizeof(uint32_t));
-    chunkSize -= sizeof(uint32_t); // get the string size
-    void* buffer = malloc(chunkSize);
-    if (buffer == NULL) {
-        std::cerr << "error allocating buffer " << std::endl;
-        exit(-1);
-    }
-    memcpy(buffer, (char*)rawData + sizeof(uint32_t), chunkSize);
-    std::string bufstr = std::string((char*)buffer); // convert to string 
-    std::string delimiter = "|";
-    std::string filename = "";
-    size_t pos = 0;
-    while ((pos = bufstr.find(delimiter)) != std::string::npos) {
-        filename = bufstr.substr(0, pos);
-        result.emplace_back(filename);
-        bufstr.erase(0, pos + delimiter.size());
-    }
-    free(buffer); // do not leak memory
-    return result;
+  assert(symtab_ != NULL);
+  Region* stringTableSec = NULL;
+  symtab_->findRegion(stringTableSec, stringTableName);
+  std::vector<std::string> result;
+  if (stringTableSec == NULL) {
+     return result;
+  }       
+  void * rawData = stringTableSec->getPtrToRawData();
+  uint32_t chunkSize = 0;
+  memcpy(&chunkSize, rawData, sizeof(uint32_t));
+  chunkSize -= sizeof(uint32_t); // get the string size
+  void* buffer = malloc(chunkSize);
+  if (buffer == NULL) {
+     cerr << "error allocating buffer " << std::endl;
+     exit(-1);
+   }
+   memcpy(buffer, (char*)rawData + sizeof(uint32_t), chunkSize);
+   std::string bufstr = std::string((char*)buffer); // convert to string 
+   std::string delimiter = "|";
+   std::string filename = "";
+   size_t pos = 0;
+   while ((pos = bufstr.find(delimiter)) != std::string::npos) {
+     filename = bufstr.substr(0, pos);
+     result.emplace_back(filename);
+     bufstr.erase(0, pos + delimiter.size());
+   }
+  free(buffer); // do not leak memory
+  return result;
 }
 
 /* serialize the line map records and add region */
@@ -3729,19 +3742,20 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeLineMapInfo(
     memcpy(chunk, (char*)&numRecords, sizeof(uint32_t));
     uint32_t offset = sizeof(uint32_t);
     for (int i = 0; i < numRecords; ++i) {
-        uint64_t inst_addr = (uint64_t)newLineMap_[i].first;
-        auto stmt = newLineMap_[i].second;
-        auto filename = stmt.getFile();
-        if (fileMap_.find(filename) == fileMap_.end()) {
-            continue;
-        } 
-        uint32_t file_index = fileMap_[filename];
-        uint32_t line_number = (uint32_t)stmt.getLine();
-        uint32_t column_number = (uint32_t)stmt.getColumn(); 
-        uint64_t inst_point_addr = stmt.getInstPointAddr();
-        DyninstLineMapRecord rec(inst_addr, file_index, 
-                                 line_number, column_number, 
-                                 inst_point_addr);
+      auto instAddr = (uint64_t)newLineMap_[i].first;
+      auto stmt = newLineMap_[i].second;
+      auto fileName = getFileName(stmt);
+      if (fileMap_.find(fileName) == fileMap_.end()) {
+        cerr << "ERROR: cannot get filename" << endl;
+        continue;
+      } 
+      auto fileIndex = fileMap_[fileName];
+      auto lineNumber = (uint32_t)stmt.getLine();
+      auto columnNumber = (uint32_t)stmt.getColumn(); 
+      auto instPointAddr = stmt.getInstPointAddr();
+      DyninstLineMapRecord rec(instAddr, fileIndex, 
+                               lineNumber, columnNumber, 
+                               instPointAddr);
         memcpy((char*)chunk + offset, &rec, sizeof(DyninstLineMapRecord));  
         offset += sizeof(DyninstLineMapRecord);
     }
@@ -3769,24 +3783,25 @@ std::vector<LineMapInfoEntry> DyninstLineInfoManager::readLineMapInfo(
   memcpy(&numRecords, rawData, sizeof(uint32_t)); // get the number of records 
   int offset = sizeof(uint32_t);
   DyninstLineMapRecord rec; 
-  std::vector<DyninstLineMapRecord> tmp_vec;
+  std::vector<DyninstLineMapRecord> tmpVec;
   for (int i = 0; i < numRecords; ++i) {
     memcpy(&rec, (char*)rawData + offset, sizeof(DyninstLineMapRecord));
     offset += sizeof(DyninstLineMapRecord); 
-    tmp_vec.emplace_back(rec);
+    tmpVec.emplace_back(rec);
   }
-  for (int i = 0; i < tmp_vec.size(); ++i) {
-    auto rec = tmp_vec[i];
-    unsigned int fi = (unsigned int) rec.file_index;
-    unsigned int ln = (unsigned int) rec.line_number;
-    unsigned int cn = (unsigned int) rec.column_number;
-    uint64_t ipa = (uint64_t)rec.inst_point_addr;
-    Address la = (Address) rec.addr;
-    Address hi = INT_MAX;
-    if (i < tmp_vec.size() - 1)  {
-      hi = (Address)tmp_vec[i + 1].addr;
+  for (int i = 0; i < tmpVec.size(); ++i) {
+    auto rec = tmpVec[i];
+    auto fileIndex = (unsigned int) rec.file_index;
+    auto lineNumber = (unsigned int) rec.line_number;
+    auto columnNumber = (unsigned int) rec.column_number;
+    uint64_t instPointAddr = (uint64_t)rec.inst_point_addr;
+    Address lowAddr = (Address) rec.addr;
+    Address highAddr = INT_MAX;
+    if (i < tmpVec.size() - 1)  {
+      highAddr = (Address)tmpVec[i + 1].addr;
     }
-    LineMapInfoEntry entry(fi, ln, cn, la, hi, ipa);
+    LineMapInfoEntry entry(fileIndex, lineNumber, columnNumber, 
+            lowAddr, highAddr, instPointAddr);
      result.emplace_back(entry);
   } 
   return result;

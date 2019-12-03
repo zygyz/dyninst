@@ -232,12 +232,22 @@ class BinaryEdit : public AddressSpace {
     void buildInstrumentedLineMap(
             pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap);  
 
-    void buildLineMapReloc(
+    void buildLineMapDyninstAddedCode(
             pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
             Address origAddr, Address relocAddr, unsigned strandSize, 
             const Relocation::TrackerElement* tracker);
 
-    void buildLineMapInst(
+    void buildLineMapOriginReloc(
+            pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
+            Address origAddr, Address relocAddr, unsigned strandSize, 
+            const Relocation::TrackerElement* tracker);
+
+    void buildLineMapInstReloc(
+            pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
+            Address origAddr, Address relocAddr, unsigned strandSize, 
+            const Relocation::TrackerElement* tracker);
+
+    void buildLineMapEmulateReloc(
             pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
             Address origAddr, Address relocAddr, unsigned strandSize, 
             const Relocation::TrackerElement* tracker);

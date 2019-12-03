@@ -829,81 +829,129 @@ void BinaryEdit::addLibraryPrereq(std::string libname) {
 
 
 /*
- Helper function to build linemap for relocated instructions. The output is a 
- vector of <address, line info> pair suppose two adjacent pairs p1, p2, then 
- the range of address [p1.address, p2.address) maps to p1.line_info in terms of
- the last pair pl, the range of address [pl.address, infty) maps to pl.line_info 
- With this additional dyninst linemap, when emitting the binary, we could add 
- another sections to store the correspondance. And in the getSourceLines 
- function, we implement additional piece of code to check the existance of 
- added section.
+ Helper function to build linemap for relocated orignal instructions. This 
+ means that these orignal instructions are simply relocated to a different
+ offset. The output is a vector of <address, line info> pair suppose two 
+ adjacent pairs p1, p2, then the range of address [p1.address, p2.address) 
+ maps to p1.line_info. In terms of the last pair p_last, the range of address 
+ [p_last.address, infty) maps to p_last.line_info. With this additional dyninst 
+ linemap, when emitting the binary, we could add another sections to store the 
+ correspondance. And in the getSourceLines function, we implement additional 
+ piece of code to check the existance of added section.
  */
-void BinaryEdit::buildLineMapReloc(
+void BinaryEdit::buildLineMapOriginReloc(
         pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
         Address origAddr, 
         Address relocAddr, 
         unsigned strandSize, 
-        const Relocation::TrackerElement * tracker) 
-{
-    auto module = tracker->func()->mod()->pmod()->mod();
-    std::vector<SymtabAPI::LineNoTuple> lines;
-    Address curOrigAddr;
-    Address curRelocAddr;
-    Address keyAddr;
-    int lastFileIndex = -1;
-    int lastLine = -1;
-    int lastColumn = -1;
-    
-    for (unsigned offset = 0; offset < strandSize; ++offset) {
-        // do for each byte of the instruction
-        curOrigAddr = (Address)((uint64_t)origAddr + offset);
-        curRelocAddr = (Address)((uint64_t)relocAddr + offset);
-        lines.clear();
-        module->getSourceLines(lines, curOrigAddr);
-        if (lines.size() != 0) {
-            auto stmt = lines[0]; 
-            auto curFileIndex = (int)stmt.getFileIndex();
-            auto curLine = (int)stmt.getLine();
-            auto curColumn = (int)stmt.getColumn(); 
-            if (curFileIndex == lastFileIndex && 
-                curLine == lastLine && 
-                curColumn == lastColumn) {
-                //the instruction byte at curr_origAddr is 
-                //associated with the same source code location
-                continue;
-            } else {
-                stmt.setInstPointAddr(origAddr);
-                lastFileIndex = curFileIndex;
-                lastLine = curLine;
-                lastColumn = curColumn;
-                newLineMap.push_back(std::make_pair(curRelocAddr, stmt)); 
-            }
-        }
+        const Relocation::TrackerElement * tracker) {
+  auto module = tracker->func()->mod()->pmod()->mod();
+  std::vector<SymtabAPI::LineNoTuple> lines;
+  Address curOrigAddr;
+  Address curRelocAddr;
+  Address keyAddr;
+  auto lastFileIndex = -1;
+  auto lastLine = -1;
+  auto lastColumn = -1;
+  auto broken = false;
+  for (unsigned offset = 0; offset < strandSize; ++offset) {
+    // do for each byte of the instruction
+    curOrigAddr = (Address)((uint64_t)origAddr + offset);
+    curRelocAddr = (Address)((uint64_t)relocAddr + offset);
+    lines.clear();
+    module->getSourceLines(lines, curOrigAddr);
+    if (lines.size() != 0) {
+      // can get linemap info for this instruction address
+      auto stmt = lines[0]; 
+      auto curFileIndex = (int)stmt.getFileIndex();
+      auto curLine = (int)stmt.getLine();
+      auto curColumn = (int)stmt.getColumn(); 
+      if (curFileIndex == lastFileIndex && 
+          curLine == lastLine && 
+          curColumn == lastColumn) {
+          //the instruction byte at curOrigAddr is 
+          //associated with the same source code location
+         continue;
+       } else {
+         if (broken) {
+           broken = false; // reset the broken flag  
+         }
+         lastFileIndex = curFileIndex;
+         lastLine = curLine;
+         lastColumn = curColumn;
+         stmt.setInstPointAddr(curOrigAddr);
+         newLineMap.push_back(std::make_pair(curRelocAddr, stmt)); 
+       }
+    } else {
+      // cannot get line information, 
+      if (!broken) {
+        // first time encountering the broken linemap 
+        lastFileIndex = -1; // reset the last
+        lastLine = -1;
+        lastColumn = -1;
+        SymtabAPI::LineNoTuple stmt; // suppose default file is unknown
+        stmt.setInstPointAddr(curOrigAddr);
+        newLineMap.push_back(std::make_pair(curRelocAddr, stmt));
+        broken = true;
+      }
     }
+  }
 }
 
 /* 
- * Helper function for building the mapping of instrumentation code 
- * back to the source code. To distinguish it from 
- * the original code, add a line offset to the line number
+ * Helper function for building the mapping of instrumentation or emulated 
+ * code back to the source code. To distinguish it from the original code, add
+ * a line offset to the line number. For instance, if we instrument a memory 
+ * access instruction `I` by inserting a function at the point, the trampoline 
+ * code added to the function call would be associated with the instruction `I`
+ * codeType string specify wheather it is instrumented or emulated code
  */
-void BinaryEdit::buildLineMapInst(
+void BinaryEdit::buildLineMapDyninstAddedCode(
+     pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
+     Address origAddr, 
+     Address relocAddr, 
+     unsigned strandSize, 
+     const Relocation::TrackerElement * tracker) {
+  auto module = tracker->func()->mod()->pmod()->mod();
+  std::vector<SymtabAPI::LineNoTuple> lines;
+  module->getSourceLines(lines, origAddr); 
+  if (lines.size() != 0) {
+    // there is linemap information associated with the address
+    auto stmt = lines[0];
+    stmt.setInstPointAddr(origAddr);
+    stmt.setIsInstrumentCode(true);
+    // instrumented isntructions for original instruction address
+    // origAddr.
+    newLineMap.push_back(std::make_pair(relocAddr, stmt)); 
+  } else {
+    // no linemap information  
+    SymtabAPI::LineNoTuple stmt;
+    stmt.setInstPointAddr(origAddr);
+    stmt.setIsInstrumentCode(true);
+    newLineMap.push_back(std::make_pair(relocAddr, stmt));
+  }  
+}
+
+void BinaryEdit::buildLineMapInstReloc(
         pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
         Address origAddr, 
         Address relocAddr, 
         unsigned strandSize, 
         const Relocation::TrackerElement * tracker) 
 {
-    auto module = tracker->func()->mod()->pmod()->mod();
-    std::vector<SymtabAPI::LineNoTuple> lines;
-    module->getSourceLines(lines, origAddr);
-    if (lines.size() != 0) {
-        auto stmt = lines[0];
-        stmt.setInstPointAddr(origAddr);
-        // TODO: should add line offset here, not seeing 
-        // the code doing it right now
-        newLineMap.push_back(std::make_pair(relocAddr, stmt)); 
-    }  
+  buildLineMapDyninstAddedCode(newLineMap, origAddr, relocAddr, strandSize,
+          tracker);
+}
+
+void BinaryEdit::buildLineMapEmulateReloc(
+        pdvector<std::pair<Address, SymtabAPI::LineNoTuple>>& newLineMap, 
+        Address origAddr, 
+        Address relocAddr, 
+        unsigned strandSize, 
+        const Relocation::TrackerElement * tracker) 
+{
+  buildLineMapDyninstAddedCode(newLineMap, origAddr, relocAddr, strandSize,
+          tracker); 
 }
 
 
@@ -925,15 +973,15 @@ void BinaryEdit::buildInstrumentedLineMap(
       auto strandSize = trackerElement->size();
       switch(trackerElement->type()) {
         case Relocation::TrackerElement::original:
-          buildLineMapReloc(newLineMap, origAddr, 
+          buildLineMapOriginReloc(newLineMap, origAddr, 
                            relocAddr, strandSize, trackerElement);
           break;
         case Relocation::TrackerElement::emulated:
-          buildLineMapReloc(newLineMap, origAddr,
+          buildLineMapEmulateReloc(newLineMap, origAddr,
                            relocAddr, strandSize, trackerElement);
           break;
         case Relocation::TrackerElement::instrumentation:
-          buildLineMapInst(newLineMap, origAddr, 
+          buildLineMapInstReloc(newLineMap, origAddr, 
                             relocAddr, strandSize, trackerElement);
           break;
         case Relocation::TrackerElement::padding:

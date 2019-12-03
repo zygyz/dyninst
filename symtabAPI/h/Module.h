@@ -46,6 +46,7 @@
 
 #include "StringTable.h"
 
+
 namespace Dyninst{
 	namespace SymtabAPI{
 
@@ -59,6 +60,7 @@ namespace Dyninst{
 		{
 			friend class Module;
 			friend class LineInformation;
+
 			Statement(int file_index, unsigned int line, unsigned int col = 0,
 					  Offset start_addr = (Offset) -1L, Offset end_addr = (Offset) -1L) :
 					AddressRange(start_addr, end_addr),
@@ -66,7 +68,7 @@ namespace Dyninst{
 					line_(line),
 					column_(col)
 			{
-                dyninst_file_name_ = std::string("<unknown file>");
+                is_instrument_code_ = false;
                 instrument_point_addr_ = 0;
 			}
 
@@ -80,32 +82,32 @@ namespace Dyninst{
 					  column_(col),
                       instrument_point_addr_(ipa)
 			{
-              dyninst_file_name_ = std::string("<unknown file>");
+              is_instrument_code_ = false;
 			}
 
 			unsigned int file_index_; // Maybe this should be module?
 			unsigned int line_;
 			unsigned int column_;
 			StringTablePtr strings_;
-            std::string dyninst_file_name_;
             uint64_t instrument_point_addr_;  
+            bool is_instrument_code_;
 
 		public:
 			StringTablePtr getStrings_() const;
 
-			void setStrings_(StringTablePtr strings_);
+			void setStrings_(StringTablePtr strings);
 
-            void setFileName(const std::string& filename);
+            void setIsInstrumentCode(bool isInstrumentCode);
 
-            void setInstPointAddr(const uint64_t& point_addr);
+            void setInstPointAddr(const uint64_t point_addr);
 
 
 		public:
 
 			Statement() : AddressRange(0,0), file_index_(0), 
                           line_(0), column_(0)  { 
-                dyninst_file_name_ = std::string("<unknown file>"); 
-                instrument_point_addr_ = 0;
+              is_instrument_code_ = false; 
+              instrument_point_addr_ = 0;
             }
 
 			struct StatementLess {
@@ -128,6 +130,7 @@ namespace Dyninst{
 			Offset startAddr() const { return first;}
 			Offset endAddr() const {return second;}
 			const std::string& getFile() const;
+            bool getIsInstrumentCode() const;
 			unsigned int getFileIndex() const { return file_index_; }
 			unsigned int getLine()const {return line_;}
 			unsigned int getColumn() const { return column_; }
@@ -248,11 +251,8 @@ namespace Dyninst{
 
             bool parseDyninstLineInformation();
 
-            bool getDyninstLines(std::vector<Statement::Ptr>& dynLines);
-
 			LineInformation* parseLineInformation();
             
-
 			bool setDefaultNamespacePrefix(std::string str);
 
 
