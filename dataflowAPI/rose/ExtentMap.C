@@ -82,7 +82,7 @@ Extent
 ExtentMap::allocate_best_fit(rose_addr_t size)
 {
     iterator found = best_fit(size, begin());
-    if (found==end()) 
+    if (found==end())
         throw std::bad_alloc();
     Extent retval(found->first.first(), size);
     erase(retval);
@@ -94,7 +94,7 @@ Extent
 ExtentMap::allocate_first_fit(rose_addr_t size)
 {
     iterator found = first_fit(size, begin());
-    if (found==end()) 
+    if (found==end())
         throw std::bad_alloc();
     Extent retval(found->first.first(), size);
     erase(retval);
