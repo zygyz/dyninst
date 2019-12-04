@@ -3649,6 +3649,9 @@ SYMTAB_EXPORT void DyninstLineInfoReader::lookup(uint64_t instAddr, int& line,
 std::string DyninstLineInfoWriter::getFileName(
         const SymtabAPI::LineNoTuple& stmt) {
   auto fileName = stmt.getFile();
+  if (fileName == "") {
+    fileName = std::string("<unknown file>");
+  }
   auto isInstrumentCode = stmt.getIsInstrumentCode();
   if (isInstrumentCode) {
     fileName += std::string("(dyninst-added)");

@@ -967,7 +967,6 @@ void BinaryEdit::buildInstrumentedLineMap(
     Address origAddr;
     Address relocAddr;
     for (const auto& trackerElement : codeTracker->trackers()) {
-      auto funcInstancePtr = trackerElement->func(); 
       origAddr = trackerElement->orig();
       relocAddr = trackerElement->reloc();
       auto strandSize = trackerElement->size();
