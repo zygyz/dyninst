@@ -248,7 +248,6 @@ namespace Dyninst{
 			bool getStatements(std::vector<Statement::Ptr> &statements);
 
 			LineInformation *getLineInformation();
-
 			LineInformation* parseLineInformation();
             
 			bool setDefaultNamespacePrefix(std::string str);
@@ -287,17 +286,10 @@ namespace Dyninst{
 		public:
 			StringTablePtr & getStrings() ;
 
-            bool dyninstLineMapParsed() { return dyninst_linemap_parsed_; } 
-
-
 		private:
 			bool ranges_finalized;
 
 			void finalizeOneRange(Address ext_s, Address ext_e) const;
-
-            bool dyninst_linemap_parsed_;
-
-            std::string getDyninstFileName(size_t index);
 
 		};
 
