@@ -249,8 +249,6 @@ namespace Dyninst{
 
 			LineInformation *getLineInformation();
 
-            bool parseDyninstLineInformation();
-
 			LineInformation* parseLineInformation();
             
 			bool setDefaultNamespacePrefix(std::string str);

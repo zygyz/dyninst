@@ -229,27 +229,6 @@ bool Module::getSourceLines(std::vector<LineNoTuple> &lines, Offset addressInRan
    return false;
 }
 
-// parse the line information stored in .dyninstLineMap
-bool Module::parseDyninstLineInformation()  
-{
-    Symtab* symObj = exec();
-    if (symObj == NULL) {
-        cerr << "Module::parseDyninstLineInformation - symtab is null " << endl;
-        return false;
-    }
-    vector<LineMapInfoEntry> linemap = symObj->getAllRelocatedSymbols();
-    // we still insert these to leverage the multi-index lookup data structure 
-    for (int i = 0; i < linemap.size(); ++i) {
-       lineInfo_->addLine(linemap[i].file_index,  // here the file index is with offset
-                          linemap[i].line_number,
-                          linemap[i].column_number,
-                          linemap[i].low_addr_inc,
-                          linemap[i].high_addr_exc,
-                          linemap[i].inst_point_addr);      
-    }
-    return linemap.size() > 0;
-}
-
 
 LineInformation *Module::parseLineInformation() {
     if (exec()->getArchitecture() != Arch_cuda &&
@@ -281,12 +260,6 @@ LineInformation *Module::parseLineInformation() {
         objectLevelLineInfo = true;
         lineInfo_ = exec()->getObject()->parseLineInfoForObject(strings_);
     } 
-    if (dyninst_linemap_parsed_ == false) {
-        parseDyninstLineInformation(); 
-        // read the extra .dyninstLineMap section, propagate the line map 
-        // info into the lineInfo_ that should have already been created
-        dyninst_linemap_parsed_ = true;
-    }
     return lineInfo_;
 }
 

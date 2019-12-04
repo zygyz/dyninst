@@ -414,7 +414,6 @@ SYMTAB_EXPORT Symtab::Symtab(MappedFile *mf_) :
     object_type_ = obj_RelocatableFile;
     // (... the rest are now initialized for everyone above ...)
 #endif
-    extractDyninstLineInfo();
 }
 
 SYMTAB_EXPORT Symtab::Symtab() :
@@ -452,7 +451,6 @@ SYMTAB_EXPORT Symtab::Symtab() :
     pfq_rwlock_init(symbols_rwlock);
     init_debug_symtabAPI();
     create_printf("%s[%d]: Created symtab via default constructor\n", FILE__, __LINE__);
-    extractDyninstLineInfo();
 }
 
 SYMTAB_EXPORT bool Symtab::isExec() const 
@@ -1292,7 +1290,6 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
 
    defaultNamespacePrefix = "";
 
-   extractDyninstLineInfo();
 }
 
 Symtab::Symtab(unsigned char *mem_image, size_t image_size, 
@@ -1364,7 +1361,6 @@ Symtab::Symtab(unsigned char *mem_image, size_t image_size,
 
    defaultNamespacePrefix = "";
 
-   extractDyninstLineInfo();
 }
 
 bool sort_reg_by_addr(const Region* a, const Region* b)
@@ -1659,7 +1655,6 @@ Symtab::Symtab(const Symtab& obj) :
 
    deps_ = obj.deps_;
    
-   extractDyninstLineInfo();
 }
 
 // Address must be in code or data range since some code may end up
@@ -1788,15 +1783,6 @@ SYMTAB_EXPORT std::vector<std::string> &Symtab::getDependencies(){
 
 SYMTAB_EXPORT Archive *Symtab::getParentArchive() const {
     return parentArchive_;
-}
-
-SYMTAB_EXPORT std::vector<LineMapInfoEntry>& Symtab::getAllRelocatedSymbols() {
-    return vAllRelocatedSymbols_;
-}
-
-
-SYMTAB_EXPORT std::vector<std::string>& Symtab::getAllFileNames() {
-    return vAllFileNames_;
 }
 
 Symtab::~Symtab()
@@ -2371,23 +2357,12 @@ bool Symtab::getTruncateLinePaths()
 
 
 
-void Symtab::extractDyninstLineInfo()  
-{
-    // create the manager   
-    DyninstLineInfoManager mngr(this); 
-    // read the line map information 
-    vAllRelocatedSymbols_ = mngr.readLineMapInfo();
-    // read the string table 
-    vAllFileNames_ = mngr.readStringTable();  
-}
-
-
 SYMTAB_EXPORT 
 std::pair<void*, void*> Symtab::addDyninstLineInfo(
         std::vector<std::pair<Address, LineNoTuple>>& lineMap) {
-    DyninstLineInfoManager mngr(this, lineMap); // create the manager  
-    auto lineMapChunk = mngr.writeLineMapInfo(); // write linemap 
-    auto stringTableChunk = mngr.writeStringTable(); // write string table 
+    DyninstLineInfoWriter writer(this, lineMap); // create the manager  
+    auto lineMapChunk = writer.writeLineMapInfo(); // write linemap 
+    auto stringTableChunk = writer.writeStringTable(); // write string table 
     return std::make_pair(lineMapChunk, stringTableChunk);
 }
 
@@ -3608,20 +3583,70 @@ void Symtab::dumpFuncRanges() {
   }
 }
 
-SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager() {
-    symtab_ = NULL;
+SYMTAB_EXPORT DyninstLineInfoWriter::DyninstLineInfoWriter() {
+    symtab_ = nullptr;
 }
 
-SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager(
+SYMTAB_EXPORT DyninstLineInfoWriter::DyninstLineInfoWriter(
         SymtabAPI::Symtab* symtab) {
    symtab_ = symtab;
+}
+
+SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader(
+        SymtabAPI::Symtab* symtab) {
+  symtab_ = symtab;
+  relocatedSymbols_ = readLineMapInfo();
+  lenSymbols_ = relocatedSymbols_.size();
+  fileNames_ = readStringTable();
+ 
+}
+
+SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader() {
+  symtab_ = nullptr;
+}
+
+/*
+ * A binary search on the symbol table to get the line number, column number
+ * and filename associated with the given instruction addr `instAddr`
+ */
+SYMTAB_EXPORT void DyninstLineInfoReader::lookup(uint64_t instAddr, int& line, 
+        int& col, std::string& fileName) {
+  auto start = 0;
+  auto end = lenSymbols_ - 1;
+  while (start + 1 < end) {
+    auto mid = start + (end - start) / 2;
+    auto entry = relocatedSymbols_.at(mid);
+    auto lowAddrInclusive = entry.low_addr_inc;
+    auto highAddrExclusive = entry.high_addr_exc;
+    if (lowAddrInclusive <= instAddr && highAddrExclusive > instAddr) {
+      line = entry.line_number;
+      col = entry.column_number;
+      fileName = fileNames_.at(entry.file_index);
+      return;
+    } else if (instAddr < lowAddrInclusive) {
+      end = mid;
+    } else {
+      start = mid;
+    }
+  }
+  auto entryStart = relocatedSymbols_.at(start);
+  auto entryEnd = relocatedSymbols_.at(end);
+  auto entry = entryStart;
+  if (instAddr >= entryEnd.low_addr_inc && 
+          instAddr < entryEnd.high_addr_exc) {
+    entry = entryEnd;
+  }
+  line = entry.line_number;
+  col = entry.column_number;
+  fileName = fileNames_.at(entry.file_index);
+  return;
 }
 
 /*
  * Build the annotated file name depending on whether the code
  * is instrumented.
  */
-std::string DyninstLineInfoManager::getFileName(
+std::string DyninstLineInfoWriter::getFileName(
         const SymtabAPI::LineNoTuple& stmt) {
   auto fileName = stmt.getFile();
   auto isInstrumentCode = stmt.getIsInstrumentCode();
@@ -3632,7 +3657,7 @@ std::string DyninstLineInfoManager::getFileName(
 }
 
 
-SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager( 
+SYMTAB_EXPORT DyninstLineInfoWriter::DyninstLineInfoWriter( 
         SymtabAPI::Symtab* symtab, 
         std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& linemap){
   symtab_ = symtab;
@@ -3654,7 +3679,7 @@ SYMTAB_EXPORT DyninstLineInfoManager::DyninstLineInfoManager(
 
 
 /* serialize the string table and add region */
-SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(
+SYMTAB_EXPORT void* DyninstLineInfoWriter::writeStringTable(
         const char* stringTableName) {
     // serialize the string table  
     assert(symtab_ != NULL);
@@ -3695,7 +3720,7 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeStringTable(
     return chunk;   
 }
 
-SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoManager::readStringTable(
+SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoReader::readStringTable(
         const char* stringTableName) {
   assert(symtab_ != NULL);
   Region* stringTableSec = NULL;
@@ -3728,7 +3753,7 @@ SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoManager::readStringTable(
 }
 
 /* serialize the line map records and add region */
-SYMTAB_EXPORT void* DyninstLineInfoManager::writeLineMapInfo(
+SYMTAB_EXPORT void* DyninstLineInfoWriter::writeLineMapInfo(
         const char* lineMapName) {
     assert(symtab_ != NULL);
     size_t numRecords = newLineMap_.size();
@@ -3769,7 +3794,7 @@ SYMTAB_EXPORT void* DyninstLineInfoManager::writeLineMapInfo(
 }
 
 SYMTAB_EXPORT 
-std::vector<LineMapInfoEntry> DyninstLineInfoManager::readLineMapInfo(
+std::vector<LineMapInfoEntry> DyninstLineInfoReader::readLineMapInfo(
         const char* lineMapName) {
   assert(symtab_ != NULL);
   Region* linemapSec = NULL;

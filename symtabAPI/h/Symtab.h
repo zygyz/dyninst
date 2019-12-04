@@ -676,30 +676,37 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
  public:
     std::pair<void*, void*> addDyninstLineInfo(
             std::vector<std::pair<Address, LineNoTuple>>& lineMap);
-    void extractDyninstLineInfo();
-
- private:
-    std::vector<LineMapInfoEntry> vAllRelocatedSymbols_; 
-    std::vector<std::string> vAllFileNames_;
 };
 
-class SYMTAB_EXPORT DyninstLineInfoManager {
+class SYMTAB_EXPORT DyninstLineInfoWriter {
 public:
-  DyninstLineInfoManager(); 
-  DyninstLineInfoManager(SymtabAPI::Symtab* symtab);
-  DyninstLineInfoManager(SymtabAPI::Symtab* symtab, 
+  DyninstLineInfoWriter(); 
+  DyninstLineInfoWriter(SymtabAPI::Symtab* symtab); 
+  DyninstLineInfoWriter(SymtabAPI::Symtab* symtab, 
         std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& lineMap);
   void* writeStringTable(const char* stringTableName = ".dyninstStringTable");  
   void* writeLineMapInfo(const char* lineMapName = ".dyninstLineMap");
-  std::vector<std::string> readStringTable(
-          const char* stringTableName = ".dyninstStringTable");
-  std::vector<LineMapInfoEntry> readLineMapInfo(
-          const char* lineMapName = ".dyninstLineMap");
 private:
   std::string getFileName(const SymtabAPI::LineNoTuple& stmt);
 private:
   std::vector<std::pair<Address, SymtabAPI::LineNoTuple> > newLineMap_;
   std::map<std::string, uint32_t> fileMap_; // initialized by constructor 
+  SymtabAPI::Symtab* symtab_;
+};
+
+class SYMTAB_EXPORT DyninstLineInfoReader {
+public:
+  DyninstLineInfoReader();
+  DyninstLineInfoReader(SymtabAPI::Symtab* symtab);
+  std::vector<std::string> readStringTable(
+          const char* stringTableName = ".dyninstStringTable");
+  std::vector<LineMapInfoEntry> readLineMapInfo(
+          const char* lineMapName = ".dyninstLineMap");
+  void lookup(uint64_t instAddr, int& line, int& col, std::string& fileName);
+private:
+  std::vector<LineMapInfoEntry> relocatedSymbols_;
+  std::vector<std::string> fileNames_;
+  int lenSymbols_;
   SymtabAPI::Symtab* symtab_;
 };
 
