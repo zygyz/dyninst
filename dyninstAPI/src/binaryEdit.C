@@ -504,7 +504,7 @@ void addTrapTable_win(newSectionPtr, Address tableAddr)
 bool BinaryEdit::writeFile(const std::string &newFileName) 
 {
    // Step 1: changes. 
-  
+
 
       inst_printf(" writing %s ... \n", newFileName.c_str());
 
@@ -518,12 +518,12 @@ bool BinaryEdit::writeFile(const std::string &newFileName)
 
       if( symObj->isStaticBinary() && isDirty() ) {
          if( !doStaticBinarySpecialCases() ) {
-	        cerr << "Failed to write file " << newFileName << ": static binary handler failed" << endl;
-	        return false;
+	   cerr << "Failed to write file " << newFileName << ": static binary handler failed" << endl;
+	   return false;
          }
       }
 
-      delayRelocation_ = false;
+   delayRelocation_ = false;
       relocate();
       
       vector<Region*> oldSegs;
@@ -665,16 +665,14 @@ bool BinaryEdit::writeFile(const std::string &newFileName)
       pdvector<Symbol *> newSyms;
       buildDyninstSymbols(newSyms, newSec, symObj->getOrCreateModule("dyninstInst",
                                                                      lowWaterMark_));
-      
-
       for (unsigned i = 0; i < newSyms.size(); i++) {
          symObj->addSymbol(newSyms[i]);
       }
 
       pdvector<std::pair<Address, SymtabAPI::LineNoTuple> > newLineMap;
       buildInstrumentedLineMap(newLineMap);
-         
       auto chunkPtrPair = symObj->addDyninstLineInfo(newLineMap); 
+      
       // Okay, now...
       // Hand textSection and newSection to DynSymtab.
         
@@ -826,7 +824,6 @@ void BinaryEdit::addLibraryPrereq(std::string libname) {
    Symtab *symObj = mobj->parse_img()->getObject();
    symObj->addLibraryPrereq(libname);
 }
-
 
 /*
  Helper function to build linemap for relocated orignal instructions. This 
@@ -995,12 +992,11 @@ void BinaryEdit::buildInstrumentedLineMap(
   }
 }
 
-/*
- * Build a list of symbols describing instrumentation and relocated functions. 
- * To keep this list (somewhat) short, we're doing one symbol per extent of 
- * instrumentation + relocation for a particular function. 
- * New: do this for one mapped object. 
- */
+
+// Build a list of symbols describing instrumentation and relocated functions. 
+// To keep this list (somewhat) short, we're doing one symbol per extent of 
+// instrumentation + relocation for a particular function. 
+// New: do this for one mapped object. 
 void BinaryEdit::buildDyninstSymbols(pdvector<Symbol *> &newSyms, 
                                      Region *newSec,
                                      Module *newMod) {
@@ -1018,11 +1014,11 @@ void BinaryEdit::buildDyninstSymbols(pdvector<Symbol *> &newSyms,
       func_instance *currFunc = NULL;
       Address start = 0;
       unsigned size = 0;
-
+      
       for (Relocation::CodeTracker::TrackerList::const_iterator iter = CT->trackers().begin();
            iter != CT->trackers().end(); ++iter) {
          const Relocation::TrackerElement *tracker = *iter;
-
+         
          func_instance *tfunc = tracker->func();
          
          if (currFunc != tfunc) {
@@ -1032,11 +1028,10 @@ void BinaryEdit::buildDyninstSymbols(pdvector<Symbol *> &newSyms,
                // currfunc set
                // start set
                size = tracker->reloc() - start;
-
+               
                std::string name = currFunc->prettyName();
-
                name.append("_dyninst");
-                  
+               
                Symbol *newSym = new Symbol(name.c_str(),
                                            Symbol::ST_FUNCTION,
                                            Symbol::SL_GLOBAL,
@@ -1047,7 +1042,6 @@ void BinaryEdit::buildDyninstSymbols(pdvector<Symbol *> &newSyms,
                                            size);                                        
                newSyms.push_back(newSym);
             }
-
             currFunc = tfunc;
             start = tracker->reloc();
             size = 0;
