@@ -47,7 +47,7 @@ class SYMTAB_EXPORT LineInformation :
 {
 public:
     typedef RangeLookupTypes< Statement> traits;
-    typedef RangeLookupTypes< Statement >::type impl_t; 
+    typedef RangeLookupTypes< Statement >::type impl_t;
     typedef impl_t::index<Statement::addr_range>::type::const_iterator const_iterator;
     typedef impl_t::index<Statement::line_info>::type::const_iterator const_line_info_iterator;
     typedef traits::value_type Statement_t;
@@ -59,19 +59,18 @@ public:
             unsigned int lineOffset, 
             Offset lowInclusiveAddr, 
             Offset highExclusiveAddr );
-
-     bool addLine( unsigned int fileIndex,
-                   unsigned int lineNo,
-                   unsigned int lineOffset,
-                   Offset lowInclusiveAddr,
-                   Offset highExclusiveAddr);
+    bool addLine( unsigned int fileIndex,
+                  unsigned int lineNo,
+                  unsigned int lineOffset,
+                  Offset lowInclusiveAddr,
+                  Offset highExclusiveAddr );
 
       bool addLine(unsigned int fileIndex,
                    unsigned int lineNo,
                    unsigned int lineOffset,
                    Offset lowInclusiveAddr,
                    Offset highExclusiveAddr,
-                   uint64_t instPointAddr);
+                   bool isInstrumentCode);
 
       void addLineInfo(LineInformation *lineInfo);	      
 
@@ -83,7 +82,7 @@ public:
 
       /* You MUST NOT deallocate the strings returned. */
       bool getSourceLines(Offset addressInRange, std::vector<Statement_t> &lines);
-      bool getSourceLines(Offset addressInRange, std::vector<Statement> &lines);
+    bool getSourceLines(Offset addressInRange, std::vector<Statement> &lines);
 
       bool getAddressRanges( const char * lineSource, unsigned int LineNo, std::vector< AddressRange > & ranges );
       const_line_info_iterator begin_by_source() const;
@@ -101,7 +100,7 @@ public:
       void dump();
 
       virtual ~LineInformation();
-      StringTablePtr strings_;
+        StringTablePtr strings_;
    protected:
 public:
     StringTablePtr getStrings() ;
