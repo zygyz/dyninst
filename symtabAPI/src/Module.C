@@ -390,7 +390,6 @@ Module::Module() :
    strings_(new StringTable),
     ranges_finalized(false)
 {
-    dyninst_linemap_parsed_ = false;
 }
 
 Module::Module(const Module &mod) :
@@ -409,7 +408,6 @@ Module::Module(const Module &mod) :
     ranges_finalized(mod.ranges_finalized)
 
 {
-    dyninst_linemap_parsed_ = false;
 }
 
 Module::~Module()
