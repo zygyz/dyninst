@@ -46,7 +46,6 @@
 
 #include "StringTable.h"
 
-
 namespace Dyninst{
 	namespace SymtabAPI{
 
@@ -60,56 +59,32 @@ namespace Dyninst{
 		{
 			friend class Module;
 			friend class LineInformation;
-
 			Statement(int file_index, unsigned int line, unsigned int col = 0,
 					  Offset start_addr = (Offset) -1L, Offset end_addr = (Offset) -1L) :
 					AddressRange(start_addr, end_addr),
 					file_index_(file_index),
 					line_(line),
-					column_(col)
-			{
-                is_instrument_code_ = false;
-                instrument_point_addr_ = 0;
-			}
+					column_(col),
+                    is_instrumentation_(false)
 
-			Statement(int file_index, unsigned int line, uint64_t ipa, 
-                      unsigned int col = 0,
-					  Offset start_addr = (Offset) -1L, 
-                      Offset end_addr = (Offset) -1L) :
-					  AddressRange(start_addr, end_addr),
-					  file_index_(file_index),
-					  line_(line),
-					  column_(col),
-                      instrument_point_addr_(ipa)
 			{
-              is_instrument_code_ = false;
 			}
 
 			unsigned int file_index_; // Maybe this should be module?
 			unsigned int line_;
 			unsigned int column_;
 			StringTablePtr strings_;
-            uint64_t instrument_point_addr_;  
-            bool is_instrument_code_;
-
+            bool is_instrumentation_;
 		public:
 			StringTablePtr getStrings_() const;
 
-			void setStrings_(StringTablePtr strings);
+			void setStrings_(StringTablePtr strings_);
 
-            void setIsInstrumentCode(bool isInstrumentCode);
-
-            void setInstPointAddr(const uint64_t point_addr);
-
-
+            void setInstrumentationFlag(bool is_instrumentation);
 		public:
 
-			Statement() : AddressRange(0,0), file_index_(0), 
-                          line_(0), column_(0)  { 
-              is_instrument_code_ = false; 
-              instrument_point_addr_ = 0;
-            }
-
+			Statement() : AddressRange(0,0), file_index_(0), line_(0), 
+                          column_(0), is_instrumentation_(false)  {}
 			struct StatementLess {
 				bool operator () ( const Statement &lhs, const Statement &rhs ) const;
 			};
@@ -130,16 +105,13 @@ namespace Dyninst{
 			Offset startAddr() const { return first;}
 			Offset endAddr() const {return second;}
 			const std::string& getFile() const;
-            bool getIsInstrumentCode() const;
 			unsigned int getFileIndex() const { return file_index_; }
 			unsigned int getLine()const {return line_;}
 			unsigned int getColumn() const { return column_; }
-            uint64_t getInstPointAddr() const { return instrument_point_addr_; }
+            bool getInstrumentationFlag() const { return is_instrumentation_; }
 			struct addr_range {};
 			struct line_info {};
 			struct upper_bound {};
-            
-            void setLine(const unsigned int& line) { line_ = line; }
 
 			typedef Statement* Ptr;
 			typedef const Statement* ConstPtr;
@@ -246,10 +218,9 @@ namespace Dyninst{
 			bool getSourceLines(std::vector<LineNoTuple> &lines,
 								Offset addressInRange);
 			bool getStatements(std::vector<Statement::Ptr> &statements);
-
 			LineInformation *getLineInformation();
 			LineInformation* parseLineInformation();
-            
+
 			bool setDefaultNamespacePrefix(std::string str);
 
 
@@ -290,9 +261,7 @@ namespace Dyninst{
 			bool ranges_finalized;
 
 			void finalizeOneRange(Address ext_s, Address ext_e) const;
-
 		};
-
 		template <typename OS>
 		OS& operator<<(OS& os, const Module& m)
 		{
