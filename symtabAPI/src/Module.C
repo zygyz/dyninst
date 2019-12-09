@@ -28,24 +28,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <boost/foreach.hpp>
 #include <string.h>
-
-#include "annotations.h"
 #include <common/src/debug_common.h>
-#include "common/src/pathName.h"
-#include "common/src/serialize.h"
 #include "debug.h"
-#include "symutil.h"
 
 #include "Annotatable.h"
+#include "Module.h"
+#include "Symtab.h"
 #include "Collections.h"
 #include "Function.h"
-#include "LineInformation.h"
-#include "Module.h"
-#include "Object.h"
-#include "Symtab.h"
 #include "Variable.h"
+#include "LineInformation.h"
+#include "symutil.h"
+#include "annotations.h"
+
+#include "common/src/pathName.h"
+#include "common/src/serialize.h"
+#include "Object.h"
+#include <boost/foreach.hpp>
 
 #if defined(cap_dwarf)
 #include "dwarfWalker.h"
@@ -65,30 +65,18 @@ StringTablePtr Statement::getStrings_() const {
 void Statement::setStrings_(StringTablePtr strings) {
     Statement::strings_ = strings;
 }
-
-void Statement::setIsInstrumentCode(bool isInstrumentCode) {
-  is_instrument_code_ = isInstrumentCode;
-}
-
-void Statement::setInstPointAddr(const uint64_t pointAddr) {
-    instrument_point_addr_ = pointAddr;
-}
-
-bool Statement::getIsInstrumentCode() const {
-  return is_instrument_code_;
-}
-
 const std::string& Statement::getFile() const {
-  if(strings_) {
-    if(file_index_ < strings_->size()) {
-       // can't be ->[] on shared pointer to multi_index container 
-       // or compiler gets confused
-       return (*strings_)[file_index_].str;
-     } 
-   } // we assume that strings_ is always not null  
+    if(strings_) {
+        if(file_index_ < strings_->size()) {
+            // can't be ->[] on shared pointer to multi_index container or compiler gets confused
+            return (*strings_)[file_index_].str;
+
+        }
+
+    }
     // This string will be pointed to, so it has to persist.
-   static std::string emptyStr;
-   return emptyStr;
+    static std::string emptyStr;
+    return emptyStr;
 }
 
 
@@ -202,33 +190,32 @@ bool Module::getAddressRanges(std::vector<AddressRange >&ranges,
 bool Module::getSourceLines(std::vector<Statement::Ptr> &lines, Offset addressInRange)
 {
    unsigned int originalSize = lines.size();
+
    LineInformation *lineInformation = parseLineInformation();
+   if (lineInformation)
+      lineInformation->getSourceLines( addressInRange, lines );
 
-   if (lineInformation) {
-     lineInformation->getSourceLines( addressInRange, lines );
-   }
+   if ( lines.size() != originalSize )
+      return true;
 
-   if ( lines.size() != originalSize ) {
-     return true;
-   }
    return false;
 }
 
 bool Module::getSourceLines(std::vector<LineNoTuple> &lines, Offset addressInRange)
 {
    unsigned int originalSize = lines.size();
-   LineInformation *lineInformation = parseLineInformation();
 
-   if (lineInformation) {
-     lineInformation->getSourceLines( addressInRange, lines );
-   }
+    LineInformation *lineInformation = parseLineInformation();
 
-   if ( lines.size() != originalSize ) {
-     return true;
-   }
+//    cout << "Module " << fileName() << " searching for line info in " << lineInformation << endl;
+   if (lineInformation)
+      lineInformation->getSourceLines( addressInRange, lines );
+
+   if ( lines.size() != originalSize )
+      return true;
+   
    return false;
 }
-
 
 LineInformation *Module::parseLineInformation() {
     if (exec()->getArchitecture() != Arch_cuda &&
@@ -259,7 +246,7 @@ LineInformation *Module::parseLineInformation() {
     } else if (!lineInfo_) {
         objectLevelLineInfo = true;
         lineInfo_ = exec()->getObject()->parseLineInfoForObject(strings_);
-    } 
+    }
     return lineInfo_;
 }
 
@@ -558,10 +545,12 @@ void Module::finalizeRanges()
 void Module::finalizeOneRange(Address ext_s, Address ext_e) const {
     ModRange* r = new ModRange(ext_s, ext_e, const_cast<Module*>(this));
     ModRangeLookup* lookup = exec_->mod_lookup();
+//    cout << "Inserting range " << std::hex << (*r) << std::dec << endl;
     lookup->insert(r);
 }
 
 void Module::addDebugInfo(Module::DebugInfoT info) {
+//    cout << "Adding CU DIE to " << fileName() << endl;
     info_.push_back(info);
 
 }
@@ -569,3 +558,4 @@ void Module::addDebugInfo(Module::DebugInfoT info) {
 StringTablePtr & Module::getStrings() {
     return strings_;
 }
+
