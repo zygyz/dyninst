@@ -70,7 +70,7 @@ class MappedFile;
 #define SYM_MAJOR DYNINST_MAJOR_VERSION
 #define SYM_MINOR DYNINST_MINOR_VERSION
 #define SYM_BETA  DYNINST_PATCH_VERSION
-
+ 
 namespace Dyninst {
 
    struct SymSegment;
@@ -79,6 +79,7 @@ namespace SymtabAPI {
 
 class Archive;
 class builtInTypeCollection;
+
 class ExceptionBlock;
 class Object;
 class localVar;
@@ -92,49 +93,17 @@ typedef IBSTree<FuncRange> FuncRangeLookup;
 typedef Dyninst::ProcessReader MemRegReader;
 
 typedef struct DyninstLineMapRecord {
-    DyninstLineMapRecord() {} 
-    DyninstLineMapRecord(
-            uint64_t la, uint32_t fi, 
-            uint32_t ln, uint32_t cn, uint64_t ipa):
-        addr(la), file_index(fi), line_number(ln), 
+  DyninstLineMapRecord() {} 
+  DyninstLineMapRecord(Address address, unsigned int file_index,
+            unsigned int line, unsigned int column, bool is_instrumentation):
+        (la), file_index(fi), line_(line), 
         column_number(cn), inst_point_addr(ipa) { }
-    uint64_t addr; 
-    uint32_t file_index;
-    uint32_t line_number;
-    uint32_t column_number;
-    uint64_t inst_point_addr;
+  Address address; 
+  unsigned int file_index;
+  unsigned int line;
+  unsigned int column;
+  bool is_instrumentation;
 } DyninstLineMapRecord;
-
-
-typedef struct LineMapInfoEntry {
-    unsigned int file_index;
-    unsigned int line_number;
-    unsigned int column_number;
-    Address low_addr_inc;
-    Address high_addr_exc;
-    uint64_t inst_point_addr;
-
-    LineMapInfoEntry(unsigned int fi, unsigned int ln, 
-            unsigned int cn, Address la, Address hi) {
-        file_index = fi;
-        line_number = ln;
-        column_number = cn;
-        low_addr_inc = la;
-        high_addr_exc = hi; 
-        inst_point_addr = 0;
-    } 
-
-    LineMapInfoEntry(unsigned int fi, unsigned int ln, 
-            unsigned int cn, Address la, Address hi, uint64_t ipa) {
-        file_index = fi;
-        line_number = ln;
-        column_number = cn;
-        low_addr_inc = la;
-        high_addr_exc = hi; 
-        inst_point_addr = ipa;
-    } 
-} LineMapInfoEntry;
-
 
 class SYMTAB_EXPORT Symtab : public LookupInterface,
                public Serializable,
@@ -304,8 +273,7 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
    void setTruncateLinePaths(bool value);
    bool getTruncateLinePaths();
    void forceFullLineInfoParse();
-
-
+   
    /***** Type Information *****/
    virtual bool findType(Type *&type, std::string name);
    virtual Type *findType(unsigned type_id);
@@ -412,10 +380,6 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
    bool removeLibraryDependency(std::string lib);
 
    Archive *getParentArchive() const;
-
-   std::vector<LineMapInfoEntry>& getAllRelocatedSymbols() ;  
-
-   std::vector<std::string>& getAllFileNames();
 
    /***** Error Handling *****/
    static SymtabError getLastSymtabError();
@@ -672,42 +636,6 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
 
  private:
     unsigned _ref_cnt;
-
- public:
-    std::pair<void*, void*> addDyninstLineInfo(
-            std::vector<std::pair<Address, LineNoTuple>>& lineMap);
-};
-
-class SYMTAB_EXPORT DyninstLineInfoWriter {
-public:
-  DyninstLineInfoWriter(); 
-  DyninstLineInfoWriter(SymtabAPI::Symtab* symtab); 
-  DyninstLineInfoWriter(SymtabAPI::Symtab* symtab, 
-        std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& lineMap);
-  void* writeStringTable(const char* stringTableName = ".dyninstStringTable");  
-  void* writeLineMapInfo(const char* lineMapName = ".dyninstLineMap");
-private:
-  std::string getFileName(const SymtabAPI::LineNoTuple& stmt);
-private:
-  std::vector<std::pair<Address, SymtabAPI::LineNoTuple> > newLineMap_;
-  std::map<std::string, uint32_t> fileMap_; // initialized by constructor 
-  SymtabAPI::Symtab* symtab_;
-};
-
-class SYMTAB_EXPORT DyninstLineInfoReader {
-public:
-  DyninstLineInfoReader();
-  DyninstLineInfoReader(SymtabAPI::Symtab* symtab);
-  std::vector<std::string> readStringTable(
-          const char* stringTableName = ".dyninstStringTable");
-  std::vector<LineMapInfoEntry> readLineMapInfo(
-          const char* lineMapName = ".dyninstLineMap");
-  void lookup(uint64_t instAddr, int& line, int& col, std::string& fileName);
-private:
-  std::vector<LineMapInfoEntry> relocatedSymbols_;
-  std::vector<std::string> fileNames_;
-  int lenSymbols_;
-  SymtabAPI::Symtab* symtab_;
 };
 
 /**

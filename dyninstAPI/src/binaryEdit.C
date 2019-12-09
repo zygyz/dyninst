@@ -876,7 +876,6 @@ void BinaryEdit::buildLineMapOriginReloc(
          lastFileIndex = curFileIndex;
          lastLine = curLine;
          lastColumn = curColumn;
-         stmt.setInstPointAddr(curOrigAddr);
          newLineMap.push_back(std::make_pair(curRelocAddr, stmt)); 
        }
     } else {
@@ -887,7 +886,6 @@ void BinaryEdit::buildLineMapOriginReloc(
         lastLine = -1;
         lastColumn = -1;
         SymtabAPI::LineNoTuple stmt; // suppose default file is unknown
-        stmt.setInstPointAddr(curOrigAddr);
         newLineMap.push_back(std::make_pair(curRelocAddr, stmt));
         broken = true;
       }
@@ -915,16 +913,14 @@ void BinaryEdit::buildLineMapDyninstAddedCode(
   if (lines.size() != 0) {
     // there is linemap information associated with the address
     auto stmt = lines[0];
-    stmt.setInstPointAddr(origAddr);
-    stmt.setIsInstrumentCode(true);
+    stmt.setInstrumentationFlag(true);
     // instrumented isntructions for original instruction address
     // origAddr.
     newLineMap.push_back(std::make_pair(relocAddr, stmt)); 
   } else {
     // no linemap information  
     SymtabAPI::LineNoTuple stmt;
-    stmt.setInstPointAddr(origAddr);
-    stmt.setIsInstrumentCode(true);
+    stmt.setInstrumentationFlag(true);
     newLineMap.push_back(std::make_pair(relocAddr, stmt));
   }  
 }
