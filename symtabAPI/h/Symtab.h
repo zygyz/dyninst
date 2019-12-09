@@ -268,12 +268,13 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
    bool addLine(std::string lineSource, unsigned int lineNo,
          unsigned int lineOffset, Offset lowInclAddr,
          Offset highExclAddr);
+   std::pair<void*, void*> addDyninstLineInfo(
+           std::vector<std::pair<Address, LineNoTuple>>& lineMap);
    bool addAddressRange(Offset lowInclAddr, Offset highExclAddr, std::string lineSource,
          unsigned int lineNo, unsigned int lineOffset = 0);
    void setTruncateLinePaths(bool value);
    bool getTruncateLinePaths();
    void forceFullLineInfoParse();
-   
    /***** Type Information *****/
    virtual bool findType(Type *&type, std::string name);
    virtual Type *findType(unsigned type_id);
