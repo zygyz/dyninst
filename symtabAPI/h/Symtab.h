@@ -92,6 +92,10 @@ typedef IBSTree< ModRange > ModRangeLookup;
 typedef IBSTree<FuncRange> FuncRangeLookup;
 typedef Dyninst::ProcessReader MemRegReader;
 
+/*
+ * This struct is used for packing dyninst linemap information into 
+ * memory
+ */
 typedef struct DyninstLineMapRecord {
   DyninstLineMapRecord() {} 
   DyninstLineMapRecord(Address address, unsigned int file_index,
@@ -104,6 +108,34 @@ typedef struct DyninstLineMapRecord {
   unsigned int column;
   bool is_instrumentation;
 } DyninstLineMapRecord;
+
+/*
+ * This struct is used by DyninstLineInfoReader and DyninstLineInfoWriter
+ * to store dyninst linemap information parsed from .dyninstStringTable
+ * and .dyninstLineMap sections
+ */
+typedef struct LineMapInfoEntry {
+  LineMapInfoEntry(unsigned int file_index, unsigned int line, 
+                   unsigned int column, Address low_addr_inclusive, 
+                   Address high_addr_exclusive): 
+      file_index(file_index), line(line), column(column), 
+      low_addr_inclusive(low_addr_inclusive), 
+      high_addr_exclusive(high_addr_exclusive), is_instrumentation(false) {}
+
+  LineMapInfoEntry(unsigned int file_index, unsigned int line,
+                   unsigned int column, Address low_addr_inclusive, 
+                   Address high_addr_exclusive, bool is_instrumentation):
+      file_index(file_index), line(line), column(column), 
+      low_addr_inclusive(low_addr_inclusive), 
+      high_addr_exclusive(high_addr_exclusive), 
+      is_instrumentation(is_instrumentation) {}
+  unsigned int file_index;
+  unsigned int line;
+  unsigned int column;
+  Address low_addr_inclusive;
+  Address high_addr_exclusive;
+  bool is_instrumentation;
+} LineMapInfoEntry; 
 
 class SYMTAB_EXPORT Symtab : public LookupInterface,
                public Serializable,
@@ -663,7 +695,8 @@ public:
           const char* stringTableName = ".dyninstStringTable");
   std::vector<LineMapInfoEntry> readLineMapInfo(
           const char* lineMapName = ".dyninstLineMap");
-  void lookup(uint64_t instAddr, int& line, int& col, std::string& fileName);
+  void lookup(Address instAddr, unsigned int & line, 
+              unsigned int & col, std::string& fileName);
 private:
   std::vector<LineMapInfoEntry> relocatedSymbols_;
   std::vector<std::string> fileNames_;
