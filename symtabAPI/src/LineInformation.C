@@ -52,36 +52,19 @@ LineInformation::LineInformation() :strings_(new StringTable), wasted_compares(0
 {
 } /* end LineInformation constructor */
 
-bool LineInformation::addLine( unsigned int lineSource,
+bool LineInformation::addLine( unsigned int fileIndex,
       unsigned int lineNo, 
       unsigned int lineOffset, 
       Offset lowInclusiveAddr, 
       Offset highExclusiveAddr ) 
 {
-    Statement* the_stmt = new Statement(lineSource, lineNo, 0, lineOffset,
+    Statement* the_stmt = new Statement(fileIndex, lineNo, lineOffset,
                                         lowInclusiveAddr, highExclusiveAddr);
     Statement::Ptr insert_me(the_stmt);
     insert_me->setStrings_(strings_);
-   return insert( insert_me).second; 
+   return insert( insert_me).second;
 
 } /* end setLineToAddressRangeMapping() */
-
-
-bool LineInformation::addLine(unsigned int lineSource,
-                              unsigned int lineNo, 
-                              unsigned int lineOffset, 
-                              Offset lowInclusiveAddr, 
-                              Offset highExclusiveAddr,
-                              uint64_t instPointAddr) 
-{
-    Statement* the_stmt = new Statement(lineSource, lineNo, 
-                                        instPointAddr, lineOffset,
-                                        lowInclusiveAddr, highExclusiveAddr);
-    Statement::Ptr insert_me(the_stmt);
-    insert_me->setStrings_(strings_);
-   return insert( insert_me).second; 
-} 
-
 bool LineInformation::addLine( std::string lineSource,
                                unsigned int lineNo,
                                unsigned int lineOffset,
@@ -93,6 +76,20 @@ bool LineInformation::addLine( std::string lineSource,
     return addLine(index->str, lineNo, lineOffset, lowInclusiveAddr, highExclusiveAddr);
 }
 
+bool LineInformation::addLine(unsigned int fileIndex, 
+                              unsigned int lineNo,
+                              unsigned int lineOffset,
+                              Offset lowInclusiveAddr, 
+                              Offset highExclusiveAddr, 
+                              bool isInstrumentCode)
+{
+  Statement* the_stmt = new Statement(fileIndex, lineNo, lineOffset, 
+          lowInclusiveAddr, highExclusiveAddr, isInstrumentCode);
+  Statement::Ptr insert_me(the_stmt);
+  insert_me->newStrings_(strings_);
+  return insert(insert_me).second;
+}
+                              
 void LineInformation::addLineInfo(LineInformation *lineInfo)
 {
     if(!lineInfo)
@@ -126,7 +123,7 @@ bool LineInformation::getSourceLines(Offset addressInRange,
     const_iterator end_addr_valid = impl_t::upper_bound(addressInRange );
     while(start_addr_valid != end_addr_valid && start_addr_valid != end())
     {
-        if(*(*start_addr_valid) == addressInRange) 
+        if(*(*start_addr_valid) == addressInRange)
         {
             lines.push_back(*start_addr_valid);
         }
