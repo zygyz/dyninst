@@ -639,6 +639,38 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
     unsigned _ref_cnt;
 };
 
+class SYMTAB_EXPORT DyninstLineInfoWriter {
+public:
+  DyninstLineInfoWriter(); 
+  DyninstLineInfoWriter(SymtabAPI::Symtab* symtab); 
+  DyninstLineInfoWriter(SymtabAPI::Symtab* symtab, 
+        std::vector<std::pair<Address, SymtabAPI::LineNoTuple>>& lineMap);
+  void* writeStringTable(const char* stringTableName = ".dyninstStringTable");  
+  void* writeLineMapInfo(const char* lineMapName = ".dyninstLineMap");
+private:
+  std::string getFileName(const SymtabAPI::LineNoTuple& stmt);
+private:
+  std::vector<std::pair<Address, SymtabAPI::LineNoTuple> > newLineMap_;
+  std::map<std::string, uint32_t> fileMap_; // initialized by constructor 
+  SymtabAPI::Symtab* symtab_;
+};
+
+class SYMTAB_EXPORT DyninstLineInfoReader {
+public:
+  DyninstLineInfoReader();
+  DyninstLineInfoReader(SymtabAPI::Symtab* symtab);
+  std::vector<std::string> readStringTable(
+          const char* stringTableName = ".dyninstStringTable");
+  std::vector<LineMapInfoEntry> readLineMapInfo(
+          const char* lineMapName = ".dyninstLineMap");
+  void lookup(uint64_t instAddr, int& line, int& col, std::string& fileName);
+private:
+  std::vector<LineMapInfoEntry> relocatedSymbols_;
+  std::vector<std::string> fileNames_;
+  int lenSymbols_;
+  SymtabAPI::Symtab* symtab_;
+};
+
 /**
  * Used to represent something like a C++ try/catch block.  
  * Currently only used on Linux
