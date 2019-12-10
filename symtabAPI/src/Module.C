@@ -70,14 +70,28 @@ void Statement::setInstrumentationFlag(bool is_instrumentation) {
   is_instrumentation_ = is_instrumentation;
 }
 
+void Statement::setRelocationFlag(bool is_relocated) {
+  is_relocated_ = is_relocated;
+}
+
+void Statement::setRelocateStringTable(std::vector<std::string>* table) { 
+  relocateStringTable_ = table; 
+}
+
 const std::string& Statement::getFile() const {
-    if(strings_) {
+    if(!is_relocated_ && strings_) {
         if(file_index_ < strings_->size()) {
             // can't be ->[] on shared pointer to multi_index container or compiler gets confused
             return (*strings_)[file_index_].str;
 
         }
 
+    }
+    // otherwise, try get the relocation string info
+    if (is_relocated_ && relocateStringTable_) {
+      if (file_index_ < relocateStringTable_->size()) {
+        return (*relocateStringTable_)[file_index_];
+      }
     }
     // This string will be pointed to, so it has to persist.
     static std::string emptyStr;
@@ -251,6 +265,12 @@ LineInformation *Module::parseLineInformation() {
     } else if (!lineInfo_) {
         objectLevelLineInfo = true;
         lineInfo_ = exec()->getObject()->parseLineInfoForObject(strings_);
+    }
+    // additionally, look for dyninst relocated symbol information
+    if (exec()->getArchitecture() != Arch_cuda) {
+      cout << "adding additional dyninst relocation linemap info" << endl;
+      auto reader = exec()->getDyninstLineInfoReader(); 
+      reader->addToLineInformation(lineInfo_);
     }
     return lineInfo_;
 }

@@ -65,6 +65,7 @@ namespace Dyninst{
 					file_index_(file_index),
 					line_(line),
 					column_(col),
+                    is_relocated_(false),
                     is_instrumentation_(false)
 
 			{
@@ -74,6 +75,8 @@ namespace Dyninst{
 			unsigned int line_;
 			unsigned int column_;
 			StringTablePtr strings_;
+            std::vector<std::string>* relocateStringTable_;
+            bool is_relocated_;
             bool is_instrumentation_;
 		public:
 			StringTablePtr getStrings_() const;
@@ -81,10 +84,15 @@ namespace Dyninst{
 			void setStrings_(StringTablePtr strings_);
 
             void setInstrumentationFlag(bool is_instrumentation);
+
+            void setRelocationFlag(bool is_relocated);
+
+            void setRelocateStringTable(std::vector<std::string>* table);
 		public:
 
 			Statement() : AddressRange(0,0), file_index_(0), line_(0), 
-                          column_(0), is_instrumentation_(false)  {}
+                          column_(0), is_relocated_(false), 
+                          is_instrumentation_(false)  {}
 			struct StatementLess {
 				bool operator () ( const Statement &lhs, const Statement &rhs ) const;
 			};
@@ -109,13 +117,13 @@ namespace Dyninst{
 			unsigned int getLine()const {return line_;}
 			unsigned int getColumn() const { return column_; }
             bool getInstrumentationFlag() const { return is_instrumentation_; }
+            bool getRelocationFlag() const { return is_relocated_; }
 			struct addr_range {};
 			struct line_info {};
 			struct upper_bound {};
 
 			typedef Statement* Ptr;
 			typedef const Statement* ConstPtr;
-
 		};
 		template <typename OS>
 		OS& operator<<(OS& os, const Statement& s)

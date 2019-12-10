@@ -413,7 +413,8 @@ SYMTAB_EXPORT Symtab::Symtab(MappedFile *mf_) :
     object_type_ = obj_RelocatableFile;
     // (... the rest are now initialized for everyone above ...)
 #endif
-
+    // initialize dyninst line info reader for possible relocated symbol info.
+    dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
 }
 
 SYMTAB_EXPORT Symtab::Symtab() :
@@ -450,6 +451,7 @@ SYMTAB_EXPORT Symtab::Symtab() :
 {  
     pfq_rwlock_init(symbols_rwlock);
     init_debug_symtabAPI();
+    dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
     create_printf("%s[%d]: Created symtab via default constructor\n", FILE__, __LINE__);
 }
 
@@ -1251,7 +1253,8 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
    init_debug_symtabAPI();
    // Initialize error parameter
    err = false;
-   
+   // initilzie reader for potential relocated symbol linemap info 
+   dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
    create_printf("%s[%d]: created symtab for %s\n", FILE__, __LINE__, filename.c_str());
 
 #if defined (os_windows)
@@ -1327,7 +1330,8 @@ Symtab::Symtab(unsigned char *mem_image, size_t image_size,
    pfq_rwlock_init(symbols_rwlock);
    // Initialize error parameter
    err = false;
-  
+   // initialize reader for potential dyninst relocated symbol linemap info 
+   dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
    create_printf("%s[%d]: created symtab for memory image at addr %u\n", 
                  FILE__, __LINE__, mem_image);
 
@@ -1651,6 +1655,8 @@ Symtab::Symtab(const Symtab& obj) :
    }
 
    deps_ = obj.deps_;
+   // initialize reader for potential dyninst relocated symbol linempa info
+   dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
 }
 
 // Address must be in code or data range since some code may end up
@@ -1855,7 +1861,8 @@ Symtab::~Symtab()
    // Make sure to free the underlying Object as it doesn't have a factory
    // open method
    delete obj_private;
-
+   // delete reader for dyninst relocated symbol info
+   delete dyninstLineInfoReader_;
    if (mf) MappedFile::closeMappedFile(mf);
 
 }	
@@ -3574,6 +3581,10 @@ void Symtab::dumpFuncRanges() {
   }
 }
 
+DyninstLineInfoReader* Symtab::getDyninstLineInfoReader() const {
+  return dyninstLineInfoReader_;
+}
+
 SYMTAB_EXPORT DyninstLineInfoWriter::DyninstLineInfoWriter() {
   symtab_ = nullptr;
 }
@@ -3582,12 +3593,17 @@ SYMTAB_EXPORT DyninstLineInfoWriter::DyninstLineInfoWriter(
         SymtabAPI::Symtab* symtab) {
   symtab_ = symtab;
 }
+ 
+SYMTAB_EXPORT DyninstLineInfoReader::~DyninstLineInfoReader() {
+  if (fileNames_) {
+    delete fileNames_;
+  }
+}
 
 SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader(
         SymtabAPI::Symtab* symtab) {
   symtab_ = symtab;
   relocatedSymbols_ = readLineMapInfo();
-  lenSymbols_ = relocatedSymbols_.size();
   fileNames_ = readStringTable();
 }
 
@@ -3595,45 +3611,18 @@ SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader() {
   symtab_ = nullptr;
 }
 
-/*
- * A binary search on the symbol table to get the line number, column number
- * and filename associated with the given instruction addr `instAddr`
- */
-SYMTAB_EXPORT void DyninstLineInfoReader::lookup(Address instAddr, 
-                                                 unsigned int& line, 
-                                                 unsigned int& col, 
-                                                 std::string& fileName) {
-  auto start = 0;
-  auto end = lenSymbols_ - 1;
-  while (start + 1 < end) {
-    auto mid = start + (end - start) / 2;
-    auto entry = relocatedSymbols_.at(mid);
-    auto lowAddrInclusive = entry.low_addr_inclusive;
-    auto highAddrExclusive = entry.high_addr_exclusive;
-    if (lowAddrInclusive <= instAddr && highAddrExclusive > instAddr) {
-      line = entry.line;
-      col = entry.column;
-      fileName = fileNames_.at(entry.file_index);
-      return;
-    } else if (instAddr < lowAddrInclusive) {
-      end = mid;
-    } else {
-      start = mid;
-    }
-  }
-  auto entryStart = relocatedSymbols_.at(start);
-  auto entryEnd = relocatedSymbols_.at(end);
-  auto entry = entryStart;
-  if (instAddr >= entryEnd.low_addr_inclusive && 
-          instAddr < entryEnd.high_addr_exclusive) {
-    entry = entryEnd;
-  }
-  line = entry.line;
-  col = entry.column;
-  fileName = fileNames_.at(entry.file_index);
-  return;
-}
 
+SYMTAB_EXPORT 
+void DyninstLineInfoReader::addToLineInformation(LineInformation* lineInfo) {
+  auto isRelocationCode = true;
+  cout << "addToLineInformation: symbol vec size: " << 
+      relocatedSymbols_.size() << endl;
+  for (const auto& entry : relocatedSymbols_) {
+    lineInfo->addLine(entry.file_index, entry.line, entry.column, 
+            entry.low_addr_inclusive, entry.high_addr_exclusive, 
+            isRelocationCode, entry.is_instrumentation, fileNames_);
+  }
+}
 /*
  * Build the annotated file name depending on whether the code
  * is instrumented.
@@ -3644,9 +3633,8 @@ std::string DyninstLineInfoWriter::getFileName(
   if (fileName == "") {
     fileName = std::string("<unknown file>");
   }
-  auto isInstrumentCode = stmt.getInstrumentationFlag();
-  if (isInstrumentCode) {
-    fileName += std::string("(dyninst-instrument)");
+  if (stmt.getInstrumentationFlag()) {
+    fileName += std::string("(instrumentation)");
   }
   return fileName;
 }
@@ -3715,15 +3703,15 @@ SYMTAB_EXPORT void* DyninstLineInfoWriter::writeStringTable(
   return chunk;   
 }
 
-SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoReader::readStringTable(
+SYMTAB_EXPORT std::vector<std::string>* DyninstLineInfoReader::readStringTable(
         const char* stringTableName) {
   assert(symtab_ != NULL);
   Region* stringTableSec = NULL;
   symtab_->findRegion(stringTableSec, stringTableName);
-  std::vector<std::string> result;
   if (stringTableSec == NULL) {
-     return result;
+    return nullptr;
   }       
+  std::vector<std::string>* result = new std::vector<std::string>();
   void * rawData = stringTableSec->getPtrToRawData();
   uint32_t chunkSize = 0;
   memcpy(&chunkSize, rawData, sizeof(uint32_t));
@@ -3732,17 +3720,17 @@ SYMTAB_EXPORT std::vector<std::string> DyninstLineInfoReader::readStringTable(
   if (buffer == NULL) {
      cerr << "error allocating buffer " << std::endl;
      exit(-1);
-   }
-   memcpy(buffer, (char*)rawData + sizeof(uint32_t), chunkSize);
-   std::string bufstr = std::string((char*)buffer); // convert to string 
-   std::string delimiter = "|";
-   std::string filename = "";
-   size_t pos = 0;
-   while ((pos = bufstr.find(delimiter)) != std::string::npos) {
-     filename = bufstr.substr(0, pos);
-     result.emplace_back(filename);
-     bufstr.erase(0, pos + delimiter.size());
-   }
+  }
+  memcpy(buffer, (char*)rawData + sizeof(uint32_t), chunkSize);
+  std::string bufstr = std::string((char*)buffer); // convert to string 
+  std::string delimiter = "|";
+  std::string filename = "";
+  size_t pos = 0;
+  while ((pos = bufstr.find(delimiter)) != std::string::npos) {
+    filename = bufstr.substr(0, pos);
+    result->emplace_back(filename);
+    bufstr.erase(0, pos + delimiter.size());
+  }
   free(buffer); // do not leak memory
   return result;
 }

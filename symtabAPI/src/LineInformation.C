@@ -81,11 +81,15 @@ bool LineInformation::addLine(unsigned int fileIndex,
                               unsigned int lineOffset,
                               Offset lowInclusiveAddr, 
                               Offset highExclusiveAddr, 
-                              bool isInstrumentCode)
+                              bool isRelocationCode,
+                              bool isInstrumentCode,
+                              std::vector<std::string>* relocStringTable)
 {
   Statement* the_stmt = new Statement(fileIndex, lineNo, lineOffset, 
           lowInclusiveAddr, highExclusiveAddr);
+  the_stmt->setRelocationFlag(isRelocationCode);
   the_stmt->setInstrumentationFlag(isInstrumentCode);
+  the_stmt->setRelocateStringTable(relocStringTable);
   Statement::Ptr insert_me(the_stmt);
   insert_me->setStrings_(strings_);
   return insert(insert_me).second;

@@ -70,7 +70,9 @@ public:
                    unsigned int lineOffset,
                    Offset lowInclusiveAddr,
                    Offset highExclusiveAddr,
-                   bool isInstrumentCode);
+                   bool isRelocationCode,
+                   bool isInstrumentCode,
+                   std::vector<std::string>* relocStringTable);
 
       void addLineInfo(LineInformation *lineInfo);	      
 

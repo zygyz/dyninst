@@ -66,7 +66,6 @@ using boost::multi_index::const_mem_fun;
 using boost::multi_index::member;
 
 class MappedFile;
-
 #define SYM_MAJOR DYNINST_MAJOR_VERSION
 #define SYM_MINOR DYNINST_MINOR_VERSION
 #define SYM_BETA  DYNINST_PATCH_VERSION
@@ -110,9 +109,8 @@ typedef struct DyninstLineMapRecord {
 } DyninstLineMapRecord;
 
 /*
- * This struct is used by DyninstLineInfoReader and DyninstLineInfoWriter
- * to store dyninst linemap information parsed from .dyninstStringTable
- * and .dyninstLineMap sections
+ * This struct is used by DyninstLineInfoReader to store dyninst linemap 
+ * information parsed from .dyninstStringTable and .dyninstLineMap sections
  */
 typedef struct LineMapInfoEntry {
   LineMapInfoEntry(unsigned int file_index, unsigned int line, 
@@ -136,6 +134,23 @@ typedef struct LineMapInfoEntry {
   Address high_addr_exclusive;
   bool is_instrumentation;
 } LineMapInfoEntry; 
+
+class SYMTAB_EXPORT DyninstLineInfoReader {
+public:
+  DyninstLineInfoReader();
+  DyninstLineInfoReader(SymtabAPI::Symtab* symtab);
+  ~DyninstLineInfoReader();
+  void addToLineInformation(LineInformation* lineInfo);
+private:
+  std::vector<std::string>* readStringTable(
+          const char* stringTableName = ".dyninstStringTable");
+  std::vector<LineMapInfoEntry> readLineMapInfo(
+          const char* lineMapName = ".dyninstLineMap");
+private:
+  std::vector<LineMapInfoEntry> relocatedSymbols_;
+  std::vector<std::string>* fileNames_;
+  SymtabAPI::Symtab* symtab_;
+};
 
 class SYMTAB_EXPORT Symtab : public LookupInterface,
                public Serializable,
@@ -669,6 +684,10 @@ class SYMTAB_EXPORT Symtab : public LookupInterface,
 
  private:
     unsigned _ref_cnt;
+ public:
+   DyninstLineInfoReader* getDyninstLineInfoReader() const;
+ private:
+   DyninstLineInfoReader* dyninstLineInfoReader_;
 };
 
 class SYMTAB_EXPORT DyninstLineInfoWriter {
@@ -687,22 +706,6 @@ private:
   SymtabAPI::Symtab* symtab_;
 };
 
-class SYMTAB_EXPORT DyninstLineInfoReader {
-public:
-  DyninstLineInfoReader();
-  DyninstLineInfoReader(SymtabAPI::Symtab* symtab);
-  std::vector<std::string> readStringTable(
-          const char* stringTableName = ".dyninstStringTable");
-  std::vector<LineMapInfoEntry> readLineMapInfo(
-          const char* lineMapName = ".dyninstLineMap");
-  void lookup(Address instAddr, unsigned int & line, 
-              unsigned int & col, std::string& fileName);
-private:
-  std::vector<LineMapInfoEntry> relocatedSymbols_;
-  std::vector<std::string> fileNames_;
-  int lenSymbols_;
-  SymtabAPI::Symtab* symtab_;
-};
 
 /**
  * Used to represent something like a C++ try/catch block.  
