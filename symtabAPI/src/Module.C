@@ -65,6 +65,11 @@ StringTablePtr Statement::getStrings_() const {
 void Statement::setStrings_(StringTablePtr strings) {
     Statement::strings_ = strings;
 }
+
+void Statement::setInstrumentationFlag(bool is_instrumentation) {
+  is_instrumentation_ = is_instrumentation;
+}
+
 const std::string& Statement::getFile() const {
     if(strings_) {
         if(file_index_ < strings_->size()) {

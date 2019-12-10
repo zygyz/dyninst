@@ -84,9 +84,10 @@ bool LineInformation::addLine(unsigned int fileIndex,
                               bool isInstrumentCode)
 {
   Statement* the_stmt = new Statement(fileIndex, lineNo, lineOffset, 
-          lowInclusiveAddr, highExclusiveAddr, isInstrumentCode);
+          lowInclusiveAddr, highExclusiveAddr);
+  the_stmt->setInstrumentationFlag(isInstrumentCode);
   Statement::Ptr insert_me(the_stmt);
-  insert_me->newStrings_(strings_);
+  insert_me->setStrings_(strings_);
   return insert(insert_me).second;
 }
                               

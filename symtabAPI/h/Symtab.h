@@ -100,8 +100,8 @@ typedef struct DyninstLineMapRecord {
   DyninstLineMapRecord() {} 
   DyninstLineMapRecord(Address address, unsigned int file_index,
             unsigned int line, unsigned int column, bool is_instrumentation):
-        (la), file_index(fi), line_(line), 
-        column_number(cn), inst_point_addr(ipa) { }
+            address(address), file_index(file_index), line(line), 
+            column(column), is_instrumentation(is_instrumentation) {} 
   Address address; 
   unsigned int file_index;
   unsigned int line;

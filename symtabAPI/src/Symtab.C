@@ -3608,11 +3608,11 @@ SYMTAB_EXPORT void DyninstLineInfoReader::lookup(Address instAddr,
   while (start + 1 < end) {
     auto mid = start + (end - start) / 2;
     auto entry = relocatedSymbols_.at(mid);
-    auto lowAddrInclusive = entry.low_addr_inc;
-    auto highAddrExclusive = entry.high_addr_exc;
+    auto lowAddrInclusive = entry.low_addr_inclusive;
+    auto highAddrExclusive = entry.high_addr_exclusive;
     if (lowAddrInclusive <= instAddr && highAddrExclusive > instAddr) {
-      line = entry.line_number;
-      col = entry.column_number;
+      line = entry.line;
+      col = entry.column;
       fileName = fileNames_.at(entry.file_index);
       return;
     } else if (instAddr < lowAddrInclusive) {
@@ -3624,12 +3624,12 @@ SYMTAB_EXPORT void DyninstLineInfoReader::lookup(Address instAddr,
   auto entryStart = relocatedSymbols_.at(start);
   auto entryEnd = relocatedSymbols_.at(end);
   auto entry = entryStart;
-  if (instAddr >= entryEnd.low_addr_inc && 
-          instAddr < entryEnd.high_addr_exc) {
+  if (instAddr >= entryEnd.low_addr_inclusive && 
+          instAddr < entryEnd.high_addr_exclusive) {
     entry = entryEnd;
   }
-  line = entry.line_number;
-  col = entry.column_number;
+  line = entry.line;
+  col = entry.column;
   fileName = fileNames_.at(entry.file_index);
   return;
 }
@@ -3644,7 +3644,7 @@ std::string DyninstLineInfoWriter::getFileName(
   if (fileName == "") {
     fileName = std::string("<unknown file>");
   }
-  auto isInstrumentCode = stmt.getIsInstrumentCode();
+  auto isInstrumentCode = stmt.getInstrumentationFlag();
   if (isInstrumentCode) {
     fileName += std::string("(dyninst-instrument)");
   }
@@ -3813,10 +3813,10 @@ std::vector<LineMapInfoEntry> DyninstLineInfoReader::readLineMapInfo(
     auto line = (unsigned int) rec.line;
     auto column = (unsigned int) rec.column;
     auto instrumentationFlag = (bool) rec.is_instrumentation;
-    auto lowAddr = (Address) rec.addr;
+    auto lowAddr = (Address) rec.address;
     Address highAddr = INT_MAX;
     if (i < tmpVec.size() - 1)  {
-      highAddr = (Address)tmpVec[i + 1].addr;
+      highAddr = (Address)tmpVec[i + 1].address;
     }
     LineMapInfoEntry entry(fileIndex, line, column, 
             lowAddr, highAddr, instrumentationFlag);
