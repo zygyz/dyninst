@@ -3615,8 +3615,6 @@ SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader() {
 SYMTAB_EXPORT 
 void DyninstLineInfoReader::addToLineInformation(LineInformation* lineInfo) {
   auto isRelocationCode = true;
-  cout << "addToLineInformation: symbol vec size: " << 
-      relocatedSymbols_.size() << endl;
   for (const auto& entry : relocatedSymbols_) {
     lineInfo->addLine(entry.file_index, entry.line, entry.column, 
             entry.low_addr_inclusive, entry.high_addr_exclusive, 
@@ -3782,6 +3780,7 @@ std::vector<LineMapInfoEntry> DyninstLineInfoReader::readLineMapInfo(
   symtab_->findRegion(linemapSec, lineMapName);
   std::vector<LineMapInfoEntry> result;
   if (linemapSec == NULL) {
+    cout << "no linemap section found" << endl;
     return result;
   }       
   void* rawData = linemapSec->getPtrToRawData(); // get the pointer to the chunk 

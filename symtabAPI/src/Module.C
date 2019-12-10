@@ -268,7 +268,6 @@ LineInformation *Module::parseLineInformation() {
     }
     // additionally, look for dyninst relocated symbol information
     if (exec()->getArchitecture() != Arch_cuda) {
-      cout << "adding additional dyninst relocation linemap info" << endl;
       auto reader = exec()->getDyninstLineInfoReader(); 
       reader->addToLineInformation(lineInfo_);
     }
