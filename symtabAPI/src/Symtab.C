@@ -1253,8 +1253,6 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
    init_debug_symtabAPI();
    // Initialize error parameter
    err = false;
-   // initilzie reader for potential relocated symbol linemap info 
-   dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
    create_printf("%s[%d]: created symtab for %s\n", FILE__, __LINE__, filename.c_str());
 
 #if defined (os_windows)
@@ -1291,6 +1289,8 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
    member_name_ = mf->filename();
 
    defaultNamespacePrefix = "";
+   // initilzie reader for potential relocated symbol linemap info 
+   dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
 }
 
 Symtab::Symtab(unsigned char *mem_image, size_t image_size, 
@@ -1330,8 +1330,6 @@ Symtab::Symtab(unsigned char *mem_image, size_t image_size,
    pfq_rwlock_init(symbols_rwlock);
    // Initialize error parameter
    err = false;
-   // initialize reader for potential dyninst relocated symbol linemap info 
-   dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
    create_printf("%s[%d]: created symtab for memory image at addr %u\n", 
                  FILE__, __LINE__, mem_image);
 
@@ -1362,6 +1360,8 @@ Symtab::Symtab(unsigned char *mem_image, size_t image_size,
    member_name_ = mf->filename();
 
    defaultNamespacePrefix = "";
+   // initialize reader for potential dyninst relocated symbol linemap info 
+   dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
 }
 
 bool sort_reg_by_addr(const Region* a, const Region* b)
@@ -3695,7 +3695,7 @@ SYMTAB_EXPORT void* DyninstLineInfoWriter::writeStringTable(
   symtab_->addRegion(0,
                      chunk,
                      chunkSize, 
-                     stringTableName, 
+                     string(stringTableName), 
                      Region::RT_DATA,
                      true);
   return chunk;   
@@ -3705,7 +3705,7 @@ SYMTAB_EXPORT std::vector<std::string>* DyninstLineInfoReader::readStringTable(
         const char* stringTableName) {
   assert(symtab_ != NULL);
   Region* stringTableSec = NULL;
-  symtab_->findRegion(stringTableSec, stringTableName);
+  symtab_->findRegion(stringTableSec, std::string(stringTableName));
   if (stringTableSec == NULL) {
     return nullptr;
   }       
@@ -3766,7 +3766,7 @@ SYMTAB_EXPORT void* DyninstLineInfoWriter::writeLineMapInfo(
   symtab_->addRegion(0,
                      chunk,
                      chunkSize,
-                     lineMapName,
+                     string(lineMapName),
                      Region::RT_DATA,
                      true);               
   return chunk;
@@ -3777,13 +3777,12 @@ std::vector<LineMapInfoEntry> DyninstLineInfoReader::readLineMapInfo(
         const char* lineMapName) {
   assert(symtab_ != NULL);
   Region* linemapSec = NULL;
-  symtab_->findRegion(linemapSec, lineMapName);
+  symtab_->findRegion(linemapSec, std::string(lineMapName)); 
   std::vector<LineMapInfoEntry> result;
   if (linemapSec == NULL) {
-    cout << "no linemap section found" << endl;
     return result;
   }       
-  void* rawData = linemapSec->getPtrToRawData(); // get the pointer to the chunk 
+  void* rawData = linemapSec->getPtrToRawData();// get the pointer to the chunk 
   uint32_t numRecords;
   memcpy(&numRecords, rawData, sizeof(uint32_t)); // get the number of records 
   int offset = sizeof(uint32_t);
