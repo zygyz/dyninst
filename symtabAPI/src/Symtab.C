@@ -3713,6 +3713,8 @@ SYMTAB_EXPORT std::vector<std::string>* DyninstLineInfoReader::readStringTable(
   void * rawData = stringTableSec->getPtrToRawData();
   uint32_t chunkSize = 0;
   memcpy(&chunkSize, rawData, sizeof(uint32_t));
+  cout << "found dyninst relocation string table info, chunk size in bytes: " 
+      << chunkSize << endl;
   chunkSize -= sizeof(uint32_t); // get the string size
   void* buffer = malloc(chunkSize);
   if (buffer == NULL) {
@@ -3785,6 +3787,8 @@ std::vector<LineMapInfoEntry> DyninstLineInfoReader::readLineMapInfo(
   void* rawData = linemapSec->getPtrToRawData();// get the pointer to the chunk 
   uint32_t numRecords;
   memcpy(&numRecords, rawData, sizeof(uint32_t)); // get the number of records 
+  cout << "found dyninst relocation linemap info, num records: " 
+      << numRecords << endl;
   int offset = sizeof(uint32_t);
   DyninstLineMapRecord rec; 
   std::vector<DyninstLineMapRecord> tmpVec;
