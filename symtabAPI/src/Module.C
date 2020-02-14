@@ -266,9 +266,10 @@ LineInformation *Module::parseLineInformation() {
         lineInfo_ = exec()->getObject()->parseLineInfoForObject(strings_);
     }
     // additionally, look for dyninst relocated symbol information
-    if (exec()->getArchitecture() != Arch_cuda) {
+    if (exec()->getArchitecture() != Arch_cuda && !dyninstLineInfoParsed_) {
       auto reader = exec()->getDyninstLineInfoReader(); 
       reader->addToLineInformation(lineInfo_);
+      dyninstLineInfoParsed_ = true;
     }
     return lineInfo_;
 }
@@ -380,7 +381,8 @@ Module::Module(supportedLanguages lang, Offset adr,
    addr_(adr),
    exec_(img),
    strings_(new StringTable),
-   ranges_finalized(false)
+   ranges_finalized(false),
+   dyninstLineInfoParsed_(false)
 {
    fileName_ = extract_pathname_tail(fullNm);
 }
