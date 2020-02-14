@@ -3609,6 +3609,7 @@ SYMTAB_EXPORT DyninstLineInfoReader::~DyninstLineInfoReader() {
 
 SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader(
         SymtabAPI::Symtab* symtab) {
+  cout << "DyninstLineInfoReader constructor" << endl;
   symtab_ = symtab;
   relocatedSymbols_ = readLineMapInfo();
   fileNames_ = readStringTable();
