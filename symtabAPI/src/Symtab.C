@@ -2079,6 +2079,7 @@ bool Symtab::openFile(Symtab *&obj, std::string filename, def_t def_binary)
    // it, basically.
    if ( filename.find("/proc") == std::string::npos)
    {
+	   cout << "symtab: openFile 2 find /proc is npos" << endl;
 	   obj = findOpenSymtab(filename);
 	   if (obj)
 	   {
@@ -2107,8 +2108,9 @@ bool Symtab::openFile(Symtab *&obj, std::string filename, def_t def_binary)
 #endif
 #endif
 
+   cout << "symtab: created 2 about to creat new symtab" << filename << endl;
    obj = new Symtab(filename, (def_binary == Defensive), err);
-   cout << "symtab: created 2" << filename << endl;
+   cout << "symtab: created 2 created new symtab" << filename << endl;
 
 #if defined(TIMED_PARSE)
    struct timeval endtime;
