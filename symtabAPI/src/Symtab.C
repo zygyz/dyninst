@@ -1266,7 +1266,7 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
    // Initialize error parameter
    err = false;
    create_printf("%s[%d]: created symtab for %s\n", FILE__, __LINE__, filename.c_str());
-
+   cout << "created symtab for " << filename << endl;
 #if defined (os_windows)
    extern void fixup_filename(std::string &);
    fixup_filename(filename);
@@ -1302,7 +1302,9 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
 
    defaultNamespacePrefix = "";
    // initilzie reader for potential relocated symbol linemap info 
+   cout << "symtab constructor about to create dyninst line info reader" << endl;
    dyninstLineInfoReader_ = new DyninstLineInfoReader(this);
+   cout << "symtab constructor finish" << endl;
 }
 
 Symtab::Symtab(unsigned char *mem_image, size_t image_size, 
@@ -3789,8 +3791,10 @@ std::vector<LineMapInfoEntry> DyninstLineInfoReader::readLineMapInfo(
         const char* lineMapName) {
   assert(symtab_ != NULL);
   Region* linemapSec = NULL;
+  cout << "about to find reagion for linemap" << endl;
   symtab_->findRegion(linemapSec, std::string(lineMapName)); 
   std::vector<LineMapInfoEntry> result;
+  cout << "found region for linemap " << endl;
   if (linemapSec == NULL) {
     return result;
   }       
