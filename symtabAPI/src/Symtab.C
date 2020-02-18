@@ -2108,7 +2108,7 @@ bool Symtab::openFile(Symtab *&obj, std::string filename, def_t def_binary)
 #endif
 
    obj = new Symtab(filename, (def_binary == Defensive), err);
-   cout << "symtab: created 2" << name << endl;
+   cout << "symtab: created 2" << filename << endl;
 
 #if defined(TIMED_PARSE)
    struct timeval endtime;
