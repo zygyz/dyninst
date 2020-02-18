@@ -2923,7 +2923,7 @@ Object::Object(MappedFile *mf_, bool, void (*err_func)(const char *),
         soname_(NULL)
 {
     li_for_object = NULL; 
-
+    cout << "in object constructor " << endl;
 #if defined(TIMED_PARSE)
     struct timeval starttime;
   gettimeofday(&starttime, NULL);
@@ -2948,17 +2948,23 @@ Object::Object(MappedFile *mf_, bool, void (*err_func)(const char *),
         return;
     }
 
+    cout << "in object constructor about to create dwarf handle" << endl;
     dwarf = DwarfHandle::createDwarfHandle(mf_->pathname(), elfHdr);
+    cout << "finished creating dwarf handle" << endl;
 
     if (elfHdr->e_type() == ET_DYN) {
 //        load_shared_object(alloc_syms);
+        cout << "about to load object 1 " << endl;
         load_object(alloc_syms);
+	cout << "finished loading object 1 " << endl;
     } else if (elfHdr->e_type() == ET_REL || elfHdr->e_type() == ET_EXEC) {
         // Differentiate between an executable and an object file
         if (elfHdr->e_phnum()) is_aout_ = true;
         else is_aout_ = false;
 
+        cout << "about to load object 2 " << endl;
         load_object(alloc_syms);
+	cout << "finished loading object 2 " << endl;
     } else {
         log_perror(err_func_, "Invalid filetype in Elf header");
         has_error = true;
