@@ -2001,7 +2001,7 @@ bool Symtab::openFile(Symtab *&obj, void *mem_image, size_t size,
 #endif
 
    obj = new Symtab((unsigned char *) mem_image, size, name, (def_bin == Defensive), err);
-
+   cout << "symtab object created" << endl;
 #if defined(TIMED_PARSE)
     struct timeval endtime;
     gettimeofday(&endtime, NULL);
@@ -3613,6 +3613,7 @@ SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader(
   symtab_ = symtab;
   relocatedSymbols_ = readLineMapInfo();
   fileNames_ = readStringTable();
+  cout << "DyninstLineInfoReader initialized" << endl;     
 }
 
 SYMTAB_EXPORT DyninstLineInfoReader::DyninstLineInfoReader() {
