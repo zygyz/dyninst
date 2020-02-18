@@ -1273,7 +1273,9 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
 #endif
 
    //  createMappedFile handles reference counting
+   cout << "about to create mapped file " << filename << endl;
    mf = MappedFile::createMappedFile(filename);
+   cout << "created mapped file " << filename << endl;
    if (!mf) {
       create_printf("%s[%d]: WARNING: creating symtab for %s, " 
                     "createMappedFile() failed\n", FILE__, __LINE__, 
@@ -1282,8 +1284,10 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
       return;
    }
 
+   cout << "about to create new object " << filename << endl;
    obj_private = new Object(mf, defensive_bin, 
                             symtab_log_perror, true, this);
+   cout << "new object created " << filename << endl;
    if (obj_private->hasError()) {
       create_printf("%s[%d]: WARNING: creating symtab for %s, " 
                     "Object ctor failed\n", FILE__, __LINE__, 
@@ -1291,12 +1295,14 @@ Symtab::Symtab(std::string filename, bool defensive_bin, bool &err) :
      err = true;
      return;
    }
+   cout << "about to extract info " << filename << endl;
    if (!extractInfo(obj_private))
    {
       create_printf("%s[%d]: WARNING: creating symtab for %s, extractInfo() " 
                     "failed\n", FILE__, __LINE__, filename.c_str());
       err = true;
    }
+   cout << "info extracted and good" << filename << endl;
 
    member_name_ = mf->filename();
 
