@@ -2068,6 +2068,7 @@ Symtab *Symtab::findOpenSymtab(std::string filename)
 bool Symtab::openFile(Symtab *&obj, std::string filename, def_t def_binary)
 {
    bool err = false;
+   cout << "symtab: openFile 2" << name << endl;
 #if defined(TIMED_PARSE)
    struct timeval starttime;
    gettimeofday(&starttime, NULL);
@@ -2107,6 +2108,7 @@ bool Symtab::openFile(Symtab *&obj, std::string filename, def_t def_binary)
 #endif
 
    obj = new Symtab(filename, (def_binary == Defensive), err);
+   cout << "symtab: created 2" << name << endl;
 
 #if defined(TIMED_PARSE)
    struct timeval endtime;
