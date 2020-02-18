@@ -28,8 +28,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "common/src/vgannotations.h"
-
 #include <string.h>
 			     
 #include <stdio.h>
@@ -44,9 +42,7 @@
 
 #include "Type-mem.h"
 #include <iostream>
-#include "concurrent.h"
-
-#include <boost/atomic.hpp>
+#include <tbb/concurrent_hash_map.h>
 
 using namespace Dyninst;
 using namespace Dyninst::SymtabAPI;
@@ -59,34 +55,19 @@ static int findIntrensicType(std::string &name);
 
 // This is the ID that is decremented for each type a user defines. It is
 // Global so that every type that the user defines has a unique ID.
-boost::atomic<typeId_t> Type::USER_TYPE_ID(-10000);
-
-typeId_t Type::getUniqueTypeId()
-{
-  typeId_t val = Type::USER_TYPE_ID.fetch_add(-1);
-  return val;
-}
-
-
-void Type::updateUniqueTypeId(typeId_t ID_)
-{
-  typeId_t val = Type::USER_TYPE_ID.load();
-  while((ID_ < 0) && (val >= ID_))
-  {
-    Type::USER_TYPE_ID.compare_exchange_weak(val, val-1);
-  }
-}
+typeId_t Type::USER_TYPE_ID = -10000;
 
 namespace Dyninst {
   namespace SymtabAPI {
-    dyn_c_hash_map<void *, size_t> type_memory;
+    tbb::concurrent_hash_map<void *, size_t> type_memory;
   }
 }
 
 /* These are the wrappers for constructing a type.  Since we can create
    types six ways to Sunday, let's do them all in one centralized place. */
 
-Type::unique_ptr_Type Type::createFake(std::string name) 
+
+Type *Type::createFake(std::string name) 
 {
    // Creating a fake type without a name is just silly
    assert(name != std::string(""));
@@ -101,13 +82,10 @@ Type::unique_ptr_Type Type::createFake(std::string name)
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #endif
 
-Type::unique_ptr_Type Type::createPlaceholder(typeId_t ID, std::string name)
+Type *Type::createPlaceholder(typeId_t ID, std::string name)
 {
   static size_t max_size = 0;
-
-  static std::once_flag initialized;
-
-  std::call_once(initialized, []() {
+  if (!max_size) {
     max_size = sizeof(Type);
     max_size = MAX(sizeof(fieldListType), max_size);
     max_size = MAX(sizeof(rangedType), max_size);
@@ -124,21 +102,15 @@ Type::unique_ptr_Type Type::createPlaceholder(typeId_t ID, std::string name)
     max_size = MAX(sizeof(typeSubrange), max_size);
     max_size = MAX(sizeof(typeArray), max_size);
     max_size += 32; //Some safey padding
-    ANNOTATE_HAPPENS_BEFORE(&max_size);
-    }
-  );
-  ANNOTATE_HAPPENS_AFTER(&max_size);
+  }
 
   void *mem = malloc(max_size);
   assert(mem);
-
-  {
-     dyn_c_hash_map<void*, size_t>::accessor a;
-     type_memory.insert(a, make_pair(mem, max_size));
-  }
-
+    tbb::concurrent_hash_map<void*, size_t>::accessor a;
+  type_memory.insert(a, make_pair(mem, max_size));
+  
   Type *placeholder_type = new(mem) Type(name, ID, dataUnknownType);
-
+  race_detector_forget_access_history(placeholder_type, max_size);
   return placeholder_type;
 }
 
@@ -153,18 +125,20 @@ Type::Type(std::string name, typeId_t ID, dataClass dataTyp) :
    name_(name), 
    size_(sizeof(int)), 
    type_(dataTyp), 
-   updatingSize(false)
+   updatingSize(false), 
+   refCount(1)
 {
 	if (!name.length()) 
 		name = std::string("unnamed_") + std::string(dataClass2Str(type_));
 }
 
 Type::Type(std::string name, dataClass dataTyp) :
-   ID_(getUniqueTypeId()),
+   ID_(USER_TYPE_ID--), 
    name_(name), 
    size_(sizeof(/*long*/ int)), 
    type_(dataTyp), 
-   updatingSize(false)
+   updatingSize(false), 
+   refCount(1)
 {
 	if (!name.length()) 
 		name = std::string("unnamed_") + std::string(dataClass2Str(type_));
@@ -230,6 +204,17 @@ bool Type::setSize(unsigned int size)
 {
 	size_ = size;
 	return true;
+}
+
+void Type::incrRefCount() 
+{
+	++refCount;
+}
+
+void Type::decrRefCount() 
+{
+    --refCount;
+    if(refCount == 0) delete this;
 }
 
 std::string &Type::getName()
@@ -331,12 +316,12 @@ typeEnum::typeEnum(int ID, std::string name)
 }
 
 typeEnum::typeEnum(std::string name)
-   : Type(name, getUniqueTypeId(), dataEnum)
+   : Type(name, USER_TYPE_ID--, dataEnum)
 {
    size_ = sizeof(int);
 }
 
-typeEnum *typeEnum::create(std::string &name, dyn_c_vector< std::pair<std::string, int> *> &constants, Symtab *obj)
+typeEnum *typeEnum::create(std::string &name, tbb::concurrent_vector< std::pair<std::string, int> *> &constants, Symtab *obj)
 {
    typeEnum *typ = new typeEnum(name);
    for(unsigned i=0; i<constants.size();i++)
@@ -349,7 +334,7 @@ typeEnum *typeEnum::create(std::string &name, dyn_c_vector< std::pair<std::strin
     return typ;	
 }
 
-typeEnum *typeEnum::create(std::string &name, dyn_c_vector<std::string> &constNames, Symtab *obj)
+typeEnum *typeEnum::create(std::string &name, tbb::concurrent_vector<std::string> &constNames, Symtab *obj)
 {
    typeEnum *typ = new typeEnum(name);
    for(unsigned i=0; i<constNames.size();i++)
@@ -361,7 +346,7 @@ typeEnum *typeEnum::create(std::string &name, dyn_c_vector<std::string> &constNa
     return typ;	
 }	
 
-dyn_c_vector<std::pair<std::string, int> > &typeEnum::getConstants()
+tbb::concurrent_vector<std::pair<std::string, int> > &typeEnum::getConstants()
 {
    return consts;
 }
@@ -377,7 +362,7 @@ bool typeEnum::isCompatible(Type *otype)
    if((otype->getDataClass() == dataUnknownType) || (otype->getDataClass() == dataNullType))
        return true;
    typeTypedef *otypedef = dynamic_cast<typeTypedef *>(otype);
-   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType(Type::share));
+   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType());
 
    typeEnum *oEnumtype = dynamic_cast<typeEnum *>(otype);
 
@@ -387,8 +372,8 @@ bool typeEnum::isCompatible(Type *otype)
    if ( (name_ != "") &&( oEnumtype->name_ != "") && (name_ == oEnumtype->name_) && (ID_ == oEnumtype->ID_))
       return true;
    
-   const dyn_c_vector< std::pair<std::string, int> > &fields1 = this->getConstants();
-   const dyn_c_vector< std::pair<std::string, int> > &fields2 = oEnumtype->getConstants();
+   const tbb::concurrent_vector< std::pair<std::string, int> > &fields1 = this->getConstants();
+   const tbb::concurrent_vector< std::pair<std::string, int> > &fields2 = oEnumtype->getConstants();
    
    if ( fields1.size() != fields2.size()) 
    {
@@ -417,21 +402,21 @@ bool typeEnum::isCompatible(Type *otype)
  * POINTER
  */
 
-typePointer::typePointer(int ID, boost::shared_ptr<Type> ptr, std::string name) 
+typePointer::typePointer(int ID, Type *ptr, std::string name) 
    : derivedType(name, ID, 0, dataPointer) {
    size_ = sizeof(void *);
    if (ptr)
      setPtr(ptr);
 }
 
-typePointer::typePointer(boost::shared_ptr<Type> ptr, std::string name) 
-   : derivedType(name, getUniqueTypeId(), 0, dataPointer) {
+typePointer::typePointer(Type *ptr, std::string name) 
+   : derivedType(name, USER_TYPE_ID--, 0, dataPointer) {
    size_ = sizeof(void *);
    if (ptr)
      setPtr(ptr);
 }
 
-typePointer *typePointer::create(std::string &name, boost::shared_ptr<Type> ptr, Symtab *obj)
+typePointer *typePointer::create(std::string &name, Type *ptr, Symtab *obj)
 {
    if(!ptr)
    	return NULL;
@@ -445,7 +430,7 @@ typePointer *typePointer::create(std::string &name, boost::shared_ptr<Type> ptr,
    return typ;	
 }
 
-typePointer *typePointer::create(std::string &name, boost::shared_ptr<Type> ptr, int size, Symtab *obj)
+typePointer *typePointer::create(std::string &name, Type *ptr, int size, Symtab *obj)
 {
    if(!ptr)
    	return NULL;
@@ -460,9 +445,10 @@ typePointer *typePointer::create(std::string &name, boost::shared_ptr<Type> ptr,
    return typ;	
 }
 
-bool typePointer::setPtr(boost::shared_ptr<Type> ptr) { 
+bool typePointer::setPtr(Type *ptr) { 
   assert(ptr);
   baseType_ = ptr; 
+  baseType_->incrRefCount(); 
 
   if (name_ == "" && ptr->getName() != "") {
      name_ = std::string(ptr->getName())+" *";
@@ -474,7 +460,7 @@ bool typePointer::isCompatible(Type *otype) {
    if((otype->getDataClass() == dataUnknownType) || (otype->getDataClass() == dataNullType))
        return true;
    typeTypedef *otypedef = dynamic_cast<typeTypedef *>(otype);
-   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType(Type::share));
+   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType());
 
    typePointer *oPointertype = dynamic_cast<typePointer *>(otype);
 
@@ -491,9 +477,12 @@ void typePointer::fixupUnknowns(Module *module)
 {
    if (baseType_->getDataClass() == dataUnknownType) 
    {
+      Type *optr = baseType_;
 	  typeCollection *tc = typeCollection::getModTypeCollection(module);
 	  assert(tc);
-      baseType_ = tc->findType(baseType_->getID(), Type::share);
+      baseType_ = tc->findType(baseType_->getID());
+      baseType_->incrRefCount();
+      optr->decrRefCount();
    }
 }
 
@@ -501,21 +490,25 @@ void typePointer::fixupUnknowns(Module *module)
  * FUNCTION
  */
 
-typeFunction::typeFunction(typeId_t ID, boost::shared_ptr<Type> retType, std::string name) :
+typeFunction::typeFunction(typeId_t ID, Type *retType, std::string name) :
     Type(name, ID, dataFunction), 
 	retType_(retType) 
 {
    size_ = sizeof(void *);
+   if (retType)
+     retType->incrRefCount();
 }
 
-typeFunction::typeFunction(boost::shared_ptr<Type> retType, std::string name) :
-    Type(name, getUniqueTypeId(), dataFunction),
+typeFunction::typeFunction(Type *retType, std::string name) :
+    Type(name, USER_TYPE_ID--, dataFunction), 
 	retType_(retType) 
 {
    size_ = sizeof(void *);
+   if (retType)
+     retType->incrRefCount();
 }
 
-typeFunction *typeFunction::create(std::string &name, boost::shared_ptr<Type> retType, dyn_c_vector<boost::shared_ptr<Type>> &paramTypes, Symtab *obj)
+typeFunction *typeFunction::create(std::string &name, Type *retType, tbb::concurrent_vector<Type *> &paramTypes, Symtab *obj)
 {
     typeFunction *type = new typeFunction(retType, name);
     for(unsigned i=0;i<paramTypes.size();i++)
@@ -527,21 +520,25 @@ typeFunction *typeFunction::create(std::string &name, boost::shared_ptr<Type> re
     return type;
 }
 
-boost::shared_ptr<Type> typeFunction::getReturnType(Type::do_share_t) const{
+Type *typeFunction::getReturnType() const{
     return retType_;
 }
 
-bool typeFunction::setRetType(boost::shared_ptr<Type> rtype) {
+bool typeFunction::setRetType(Type *rtype) {
+	if(retType_)
+		retType_->decrRefCount();
     retType_ = rtype;
+    retType_->incrRefCount();
     return true;
 }
 
-bool typeFunction::addParam(boost::shared_ptr<Type> paramType){
+bool typeFunction::addParam(Type *paramType){
+    paramType->incrRefCount();
     params_.push_back(paramType);
     return true;
 }
 
-dyn_c_vector<boost::shared_ptr<Type>> &typeFunction::getParams(){
+tbb::concurrent_vector<Type *> &typeFunction::getParams(){
     return params_;
 }
 
@@ -549,7 +546,7 @@ bool typeFunction::isCompatible(Type *otype) {
    if((otype->getDataClass() == dataUnknownType) || (otype->getDataClass() == dataNullType))
        return true;
    typeTypedef *otypedef = dynamic_cast<typeTypedef *>(otype);
-   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType(Type::share));
+   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType());
 
    typeFunction *oFunctiontype = dynamic_cast<typeFunction *>(otype);
 
@@ -559,8 +556,9 @@ bool typeFunction::isCompatible(Type *otype) {
    if (retType_ != oFunctiontype->retType_)
       return false;
 
-   dyn_c_vector<boost::shared_ptr<Type>>& fields1 = this->getParams();
-   dyn_c_vector<boost::shared_ptr<Type>>& fields2 = oFunctiontype->getParams();
+   tbb::concurrent_vector<Type *> fields1 = this->getParams();
+   tbb::concurrent_vector<Type *> fields2 = oFunctiontype->getParams();
+   //const tbb::concurrent_vector<Field *> * fields2 = (tbb::concurrent_vector<Field *> *) &(otype->fieldList);
    
    if (fields1.size() != fields2.size()) {
       //reportError(BPatchWarning, 112, 
@@ -570,7 +568,10 @@ bool typeFunction::isCompatible(Type *otype) {
     
    //need to compare componment by component to verify compatibility
    for (unsigned int i=0;i<fields1.size();i++) {
-      if(!(fields1[i]->isCompatible(fields2[i]))) {
+      Type * ftype1 = fields1[i];
+      Type * ftype2 = fields2[i];
+      
+      if(!(ftype1->isCompatible(ftype2))) {
          //reportError(BPatchWarning, 112, 
          //                   "function param type mismatch ");
          return false;
@@ -586,17 +587,24 @@ void typeFunction::fixupUnknowns(Module *module)
 
 	if (retType_->getDataClass() == dataUnknownType) 
    {
-      retType_ = tc->findType(retType_->getID(), Type::share);
+      Type *otype = retType_;
+      retType_ = tc->findType(retType_->getID());
+      retType_->incrRefCount();
+      otype->decrRefCount();
    }
 
    for (unsigned int i = 0; i < params_.size(); i++)
    {
-      params_[i] = tc->findType(params_[i]->getID(), Type::share);
+      Type *otype = params_[i];
+      params_[i] = tc->findType(params_[i]->getID());
+      params_[i]->incrRefCount();
+      otype->decrRefCount();
    }	 
 }
 
 typeFunction::~typeFunction()
 { 
+	retType_->decrRefCount(); 
 }
 
 /*
@@ -614,7 +622,7 @@ typeSubrange::typeSubrange(typeId_t ID, int size, long low, long hi, std::string
 }
 
 typeSubrange::typeSubrange(int size, long low, long hi, std::string name)
-  : rangedType(name, getUniqueTypeId(), dataSubrange, size, low, hi)
+  : rangedType(name, USER_TYPE_ID--, dataSubrange, size, low, hi)
 {
 }
 
@@ -631,7 +639,7 @@ bool typeSubrange::isCompatible(Type *otype) {
    if((otype->getDataClass() == dataUnknownType) || (otype->getDataClass() == dataNullType))
        return true;
    typeTypedef *otypedef = dynamic_cast<typeTypedef *>(otype);
-   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType(Type::share));
+   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType());
 
    typeSubrange *oRangetype = dynamic_cast<typeSubrange *>(otype);
 
@@ -646,7 +654,7 @@ bool typeSubrange::isCompatible(Type *otype) {
  */
 
 typeArray::typeArray(typeId_t ID,
-		boost::shared_ptr<Type> base,
+		Type *base,
 		long low,
 		long hi,
 		std::string name,
@@ -656,21 +664,23 @@ typeArray::typeArray(typeId_t ID,
 	sizeHint_(sizeHint) 
 {
 	//if (!base) arrayElem = Symtab::type_Error;
+	if (base) arrayElem->incrRefCount();
 }
 
-typeArray::typeArray(boost::shared_ptr<Type> base,
+typeArray::typeArray(Type *base,
 		long low,
 		long hi,
 		std::string name,
 		unsigned int sizeHint) :
-	rangedType(name, getUniqueTypeId(), dataArray, 0, low, hi),
+	rangedType(name, USER_TYPE_ID--, dataArray, 0, low, hi), 
 	arrayElem(base), 
 	sizeHint_(sizeHint) 
 {
-	assert(base);
+	assert(base != NULL);
+	arrayElem->incrRefCount();
 }
 
-typeArray *typeArray::create(std::string &name, boost::shared_ptr<Type> type, long low, long hi, Symtab *obj)
+typeArray *typeArray::create(std::string &name, Type *type, long low, long hi, Symtab *obj)
 {
 	typeArray *typ = new typeArray(type, low, hi, name);
 
@@ -712,10 +722,12 @@ void typeArray::merge(Type *other)
 		return;
 	}
 
+	arrayElem->decrRefCount();
+	otherarray->arrayElem->incrRefCount();
 	arrayElem = otherarray->arrayElem;
 }
 
-boost::shared_ptr<Type> typeArray::getBaseType(Type::do_share_t) const
+Type *typeArray::getBaseType() const
 {
 	return arrayElem;
 }
@@ -755,7 +767,7 @@ bool typeArray::isCompatible(Type *otype)
 
 	if (otypedef != NULL) 
 	{
-		return isCompatible(otypedef->getConstituentType(Type::share));
+		return isCompatible(otypedef->getConstituentType());
 	}
 
 	typeArray *oArraytype = dynamic_cast<typeArray *>(otype);
@@ -787,9 +799,12 @@ void typeArray::fixupUnknowns(Module *module)
 {
    if (arrayElem->getDataClass() == dataUnknownType) 
    {
+      Type *otype = arrayElem;
 	  typeCollection *tc = typeCollection::getModTypeCollection(module);
 	  assert(tc);
-	  arrayElem = tc->findType(arrayElem->getID(), Type::share);
+	  arrayElem = tc->findType(arrayElem->getID());
+      arrayElem->incrRefCount();
+      otype->decrRefCount();
    }
 }
 
@@ -803,11 +818,11 @@ typeStruct::typeStruct(typeId_t ID, std::string name) :
 }
 
 typeStruct::typeStruct(std::string name)  :
-    fieldListType(name, getUniqueTypeId(), dataStructure)
+    fieldListType(name, USER_TYPE_ID--, dataStructure) 
 {
 }
 
-typeStruct *typeStruct::create(std::string &name, dyn_c_vector< std::pair<std::string, boost::shared_ptr<Type>> *> &flds,
+typeStruct *typeStruct::create(std::string &name, tbb::concurrent_vector< std::pair<std::string, Type *> *> &flds,
                                                                 Symtab *obj)
 {
    int offset = 0;
@@ -826,7 +841,7 @@ typeStruct *typeStruct::create(std::string &name, dyn_c_vector< std::pair<std::s
    return typ;	
 }
 
-typeStruct *typeStruct::create(std::string &name, dyn_c_vector<Field *> &flds, Symtab *obj)
+typeStruct *typeStruct::create(std::string &name, tbb::concurrent_vector<Field *> &flds, Symtab *obj)
 {
    typeStruct *typ = new typeStruct(name);
    for(unsigned i=0;i<flds.size();i++)
@@ -857,7 +872,7 @@ void typeStruct::merge(Type *other) {
    fieldList = otherstruct->fieldList;
 
    if (otherstruct->derivedFieldList) {
-       derivedFieldList = new dyn_c_vector<Field*>;
+       derivedFieldList = new tbb::concurrent_vector<Field*>;
       *derivedFieldList = *otherstruct->derivedFieldList;
    }
 }
@@ -876,7 +891,7 @@ void typeStruct::updateSize()
 	size_ += fieldList[i]->getSize();
 
 	// Is the type of this field still a placeholder?
-	if(fieldList[i]->getType(Type::share)->getDataClass() == dataUnknownType) {
+	if(fieldList[i]->getType()->getDataClass() == dataUnknownType) {
 	    size_ = 0;
          break;
 	}
@@ -893,15 +908,16 @@ bool typeStruct::isCompatible(Type *otype)
    if((otype->getDataClass() == dataUnknownType) || (otype->getDataClass() == dataNullType))
        return true;
    typeTypedef *otypedef = dynamic_cast<typeTypedef *>(otype);
-   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType(Type::share));
+   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType());
 
    typeStruct *oStructtype = dynamic_cast<typeStruct *>(otype);
 
    if (oStructtype == NULL)
       return false;
 
-   const dyn_c_vector<Field *> * fields1 = this->getComponents();
-   const dyn_c_vector<Field *> * fields2 = oStructtype->getComponents();
+   const tbb::concurrent_vector<Field *> * fields1 = this->getComponents();
+   const tbb::concurrent_vector<Field *> * fields2 = oStructtype->getComponents();
+   //const tbb::concurrent_vector<Field *> * fields2 = (tbb::concurrent_vector<Field *> *) &(otype->fieldList);
    
    if (fields1->size() != fields2->size()) {
       //reportError(BPatchWarning, 112, 
@@ -913,8 +929,11 @@ bool typeStruct::isCompatible(Type *otype)
    for (unsigned int i=0;i<fields1->size();i++) {
       Field * field1 = (*fields1)[i];
       Field * field2 = (*fields2)[i];
-            
-      if(!(field1->getType(Type::share)->isCompatible(field2->getType(Type::share)))) {
+      
+      Type * ftype1 = (Type *)field1->getType();
+      Type * ftype2 = (Type *)field2->getType();
+      
+      if(!(ftype1->isCompatible(ftype2))) {
          //reportError(BPatchWarning, 112, 
          //                   "struct/union field type mismatch ");
          return false;
@@ -939,11 +958,11 @@ typeUnion::typeUnion(typeId_t ID, std::string name) :
 }
 
 typeUnion::typeUnion(std::string name)  :
-    fieldListType(name, getUniqueTypeId(), dataUnion)
+    fieldListType(name, USER_TYPE_ID--, dataUnion) 
 {
 }
 
-typeUnion *typeUnion::create(std::string &name, dyn_c_vector< std::pair<std::string, boost::shared_ptr<Type>> *> &flds,
+typeUnion *typeUnion::create(std::string &name, tbb::concurrent_vector< std::pair<std::string, Type *> *> &flds,
                                                                 Symtab *obj)
 {
    typeUnion *typ = new typeUnion(name);
@@ -957,7 +976,7 @@ typeUnion *typeUnion::create(std::string &name, dyn_c_vector< std::pair<std::str
    return typ;	
 }
 
-typeUnion *typeUnion::create(std::string &name, dyn_c_vector<Field *> &flds, Symtab *obj)
+typeUnion *typeUnion::create(std::string &name, tbb::concurrent_vector<Field *> &flds, Symtab *obj)
 {
    typeUnion *typ = new typeUnion(name);
    for(unsigned i=0;i<flds.size();i++)
@@ -988,7 +1007,7 @@ void typeUnion::merge(Type *other) {
    fieldList = otherunion->fieldList;
 
    if (otherunion->derivedFieldList) {
-      derivedFieldList = new dyn_c_vector<Field*>;
+      derivedFieldList = new tbb::concurrent_vector<Field*>;
       *derivedFieldList = *otherunion->derivedFieldList;
    }
 }
@@ -1008,7 +1027,7 @@ void typeUnion::updateSize()
 	    size_ = fieldList[i]->getSize();
 
 	// Is the type of this field still a placeholder?
-        if(fieldList[i]->getType(Type::share)->getDataClass() == dataUnknownType) {
+        if(fieldList[i]->getType()->getDataClass() == dataUnknownType) {
             size_ = 0;
          break;
         }
@@ -1024,15 +1043,16 @@ bool typeUnion::isCompatible(Type *otype) {
    if((otype->getDataClass() == dataUnknownType) || (otype->getDataClass() == dataNullType))
        return true;
    typeTypedef *otypedef = dynamic_cast<typeTypedef *>(otype);
-   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType(Type::share));
+   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType());
 
    typeUnion *oUniontype = dynamic_cast<typeUnion *>(otype);
 
    if (oUniontype == NULL)
       return false;
 
-   const dyn_c_vector<Field *> * fields1 = this->getComponents();
-   const dyn_c_vector<Field *> * fields2 = oUniontype->getComponents();
+   const tbb::concurrent_vector<Field *> * fields1 = this->getComponents();
+   const tbb::concurrent_vector<Field *> * fields2 = oUniontype->getComponents();
+   //const tbb::concurrent_vector<Field *> * fields2 = (tbb::concurrent_vector<Field *> *) &(otype->fieldList);
    
    if (fields1->size() != fields2->size()) {
       //reportError(BPatchWarning, 112, 
@@ -1045,7 +1065,10 @@ bool typeUnion::isCompatible(Type *otype) {
       Field * field1 = (*fields1)[i];
       Field * field2 = (*fields2)[i];
       
-      if(!(field1->getType(Type::share)->isCompatible(field2->getType(Type::share)))) {
+      Type * ftype1 = (Type *)field1->getType();
+      Type * ftype2 = (Type *)field2->getType();
+      
+      if(!(ftype1->isCompatible(ftype2))) {
          //reportError(BPatchWarning, 112, 
          //                   "struct/union field type mismatch ");
          return false;
@@ -1065,13 +1088,13 @@ void typeUnion::fixupUnknowns(Module *module) {
 
    
 typeScalar::typeScalar(typeId_t ID, unsigned int size, std::string name, bool isSigned) :
-    Type(name, ID, dataScalar), isSigned_(isSigned)
+    Type(name, ID, dataScalar), isSigned_(isSigned) 
 {
    size_ = size;
 }
 
 typeScalar::typeScalar(unsigned int size, std::string name, bool isSigned) :
-    Type(name, getUniqueTypeId(), dataScalar), isSigned_(isSigned) 
+    Type(name, USER_TYPE_ID--, dataScalar), isSigned_(isSigned) 
 {
    size_ = size;
 }
@@ -1098,7 +1121,7 @@ bool typeScalar::isCompatible(Type *otype) {
    bool ret = false;
    const typeTypedef *otypedef = dynamic_cast<const typeTypedef *>(otype);
    if (otypedef != NULL)  {
-      ret =  isCompatible(otypedef->getConstituentType(Type::share));
+      ret =  isCompatible(otypedef->getConstituentType());
       return ret;
    }
 
@@ -1145,7 +1168,7 @@ typeCommon::typeCommon(int ID, std::string name) :
 {}
 
 typeCommon::typeCommon(std::string name) :
-    fieldListType(name, getUniqueTypeId(), dataCommon)
+    fieldListType(name, USER_TYPE_ID--, dataCommon) 
 {}
 
 void typeCommon::beginCommonBlock() 
@@ -1162,7 +1185,7 @@ void typeCommon::endCommonBlock(Symbol *func, void *baseAddr)
 
 	    localVar *locVar;
     	locVar = new localVar(fieldList[j]->getName(), 
-	        			     fieldList[j]->getType(Type::share), "", 0, (Function *) func);
+	        			     fieldList[j]->getType(), "", 0, (Function *) func);
 #if 0
     	VariableLocation *loc = (VariableLocation *)malloc(sizeof(VariableLocation));
 #endif
@@ -1207,16 +1230,16 @@ void typeCommon::fixupUnknowns(Module *module) {
       cblocks[i]->fixupUnknowns(module);   
 }
 
-dyn_c_vector<CBlock *> *typeCommon::getCblocks() const
+tbb::concurrent_vector<CBlock *> *typeCommon::getCblocks() const 
 {
-	return const_cast<dyn_c_vector<CBlock*>*>(&cblocks);
+	return const_cast<tbb::concurrent_vector<CBlock*>*>(&cblocks); 
 }
 
 /*
  * TYPEDEF
  */
 
-typeTypedef::typeTypedef(typeId_t ID, boost::shared_ptr<Type> base, std::string name, unsigned int sizeHint) :
+typeTypedef::typeTypedef(typeId_t ID, Type *base, std::string name, unsigned int sizeHint) :
     derivedType(name, ID, 0, dataTypedef) 
 {
 	baseType_ = base;
@@ -1227,17 +1250,19 @@ typeTypedef::typeTypedef(typeId_t ID, boost::shared_ptr<Type> base, std::string 
 		baseType_ = base;
 #endif
 	sizeHint_ = sizeHint / 8;
+	if (baseType_) baseType_->incrRefCount();
 }
 
-typeTypedef::typeTypedef(boost::shared_ptr<Type> base, std::string name, unsigned int sizeHint) :
-	derivedType(name, getUniqueTypeId(), 0, dataTypedef)
+typeTypedef::typeTypedef(Type *base, std::string name, unsigned int sizeHint) :
+	derivedType(name, USER_TYPE_ID--, 0, dataTypedef) 
 {
    assert(base != NULL);
    baseType_ = base;
    sizeHint_ = sizeHint / 8;
+   baseType_->incrRefCount();
 }
 
-typeTypedef *typeTypedef::create(std::string &name, boost::shared_ptr<Type> baseType, Symtab *obj)
+typeTypedef *typeTypedef::create(std::string &name, Type *baseType, Symtab *obj)
 {
    if(!baseType)
    	return NULL;
@@ -1288,9 +1313,12 @@ void typeTypedef::fixupUnknowns(Module *module)
 {
    if (baseType_->getDataClass() == dataUnknownType) 
    {
+      Type *otype = baseType_;
 	  typeCollection *tc = typeCollection::getModTypeCollection(module);
 	  assert(tc);
-      baseType_ = tc->findType(baseType_->getID(), Type::share);
+      baseType_ = tc->findType(baseType_->getID());
+      baseType_->incrRefCount();
+      otype->decrRefCount();
    }
 }
 
@@ -1298,19 +1326,23 @@ void typeTypedef::fixupUnknowns(Module *module)
  * REFERENCE
  */
 
-typeRef::typeRef(int ID, boost::shared_ptr<Type> refType, std::string name) :
+typeRef::typeRef(int ID, Type *refType, std::string name) :
     derivedType(name, ID, 0, dataReference) 
 {
    baseType_ = refType;
+   if (refType)
+   	refType->incrRefCount();
 }
 
-typeRef::typeRef(boost::shared_ptr<Type> refType, std::string name) :
-    derivedType(name, getUniqueTypeId(), 0, dataReference)
+typeRef::typeRef(Type *refType, std::string name) :
+    derivedType(name, USER_TYPE_ID--, 0, dataReference) 
 {
    baseType_ = refType;
+   if(refType)
+   	refType->incrRefCount();
 }
 
-typeRef *typeRef::create(std::string &name, boost::shared_ptr<Type> ref, Symtab *obj)
+typeRef *typeRef::create(std::string &name, Type *ref, Symtab *obj)
 {
    typeRef *typ = new typeRef(ref, name);
 
@@ -1335,22 +1367,25 @@ bool typeRef::isCompatible(Type *otype) {
    if((otype->getDataClass() == dataUnknownType) || (otype->getDataClass() == dataNullType))
        return true;
    typeTypedef *otypedef = dynamic_cast<typeTypedef *>(otype);
-   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType(Type::share));
+   if (otypedef != NULL) return isCompatible(otypedef->getConstituentType());
 
    typeRef *oReftype = dynamic_cast< typeRef *>(otype);
    if (oReftype == NULL) {
       return false;
    }
-   return baseType_->isCompatible(oReftype->getConstituentType(Type::share));
+   return baseType_->isCompatible(const_cast<Type *>(oReftype->getConstituentType()));
 }   
 
 void typeRef::fixupUnknowns(Module *module) 
 {
    if (baseType_->getDataClass() == dataUnknownType) 
    {
+      Type *otype = baseType_;
 	  typeCollection *tc = typeCollection::getModTypeCollection(module);
 	  assert(tc);
-      baseType_ = tc->findType(baseType_->getID(), Type::share);
+      baseType_ = tc->findType(baseType_->getID());
+      baseType_->incrRefCount();
+      otype->decrRefCount();
    }
 }
 		      
@@ -1400,16 +1435,16 @@ bool fieldListType::operator==(const Type &otype) const
    }
 }
 
-dyn_c_vector<Field *> * fieldListType::getComponents() const
+tbb::concurrent_vector<Field *> * fieldListType::getComponents() const 
 {
    if (derivedFieldList == NULL)
        const_cast<fieldListType *>(this)->fixupComponents();
    return derivedFieldList;
 }
 
-dyn_c_vector<Field *> *fieldListType::getFields() const
+tbb::concurrent_vector<Field *> *fieldListType::getFields() const 
 {
-   return const_cast<dyn_c_vector<Field *> *>(&fieldList);
+   return const_cast<tbb::concurrent_vector<Field *> *>(&fieldList);
 }
 
 void fieldListType::fixupComponents() 
@@ -1417,7 +1452,7 @@ void fieldListType::fixupComponents()
    // bperr "Getting the %d components of '%s' at 0x%x\n", fieldList.size(), getName(), this );
    /* Iterate over the field list.  Recursively (replace)
       '{superclass}' with the superclass's non-private fields. */
-   derivedFieldList = new dyn_c_vector< Field * >();
+   derivedFieldList = new tbb::concurrent_vector< Field * >();
    for( unsigned int i = 0; i < fieldList.size(); i++ ) {
       Field * currentField = fieldList[i];
       // bperr( "Considering field '%s'\n", currentField->getName() );
@@ -1426,8 +1461,9 @@ void fieldListType::fixupComponents()
             the class-graph is acyclic (Stroustrup SpecialEd pg 308),
             we're OK. */
          // bperr( "Found superclass '%s'...\n", currentField->getType()->getName() );
-         auto& superclass = dynamic_cast<fieldListInterface&>(*currentField->getType(Type::share));
-         const dyn_c_vector<Field *> * superClassFields = superclass.getComponents();
+         fieldListInterface *superclass = dynamic_cast<fieldListInterface *>(currentField->getType());
+         assert (superclass != NULL);
+         const tbb::concurrent_vector<Field *> * superClassFields = superclass->getComponents();
          // bperr( "Superclass has %d components.\n", superClassFields->size() );
          /* FIXME: do we also need to consider the visibility of the superclass itself? */
          /* FIXME: visibility can also be described on a per-name basis in the
@@ -1454,7 +1490,7 @@ void fieldListType::fixupComponents()
  * type object.
  *     STRUCTS OR UNIONS
  */
-void fieldListType::addField(std::string fieldname, boost::shared_ptr<Type> type, int offsetVal, visibility_t vis)
+void fieldListType::addField(std::string fieldname, Type *type, int offsetVal, visibility_t vis)
 {
   Field * newField;
   newField = new Field(fieldname, type, offsetVal, vis);
@@ -1476,7 +1512,7 @@ void fieldListType::addField(Field *fld)
   postFieldInsert(newField->getSize());
 }
 
-void fieldListType::addField(unsigned num, std::string fieldname, boost::shared_ptr<Type> type, int offsetVal, visibility_t vis)
+void fieldListType::addField(unsigned num, std::string fieldname, Type *type, int offsetVal, visibility_t vis)
 {
   Field * newField;
   newField = new Field(fieldname, type, offsetVal, vis);
@@ -1484,7 +1520,7 @@ void fieldListType::addField(unsigned num, std::string fieldname, boost::shared_
   if(num >fieldList.size()+1)
   	num = fieldList.size();
   // Add field to list of struct/union fields
-    dyn_c_vector<Field*> newFieldList;
+    tbb::concurrent_vector<Field*> newFieldList;
     std::copy(fieldList.begin(), fieldList.begin() + num, back_inserter(newFieldList));
     newFieldList.push_back(newField);
     std::copy(fieldList.begin() + num, fieldList.end(), back_inserter(newFieldList));
@@ -1501,7 +1537,7 @@ void fieldListType::addField(unsigned num, Field *fld)
   if(num >fieldList.size()+1)
   	num = fieldList.size();
   // Add field to list of struct/union fields
-    dyn_c_vector<Field*> newFieldList;
+    tbb::concurrent_vector<Field*> newFieldList;
     std::copy(fieldList.begin(), fieldList.begin() + num, back_inserter(newFieldList));
     newFieldList.push_back(newField);
     std::copy(fieldList.begin() + num, fieldList.end(), back_inserter(newFieldList));
@@ -1532,13 +1568,13 @@ derivedType::derivedType(std::string &name, typeId_t id, int size, dataClass typ
 }
 
 derivedType::derivedType(std::string &name, int size, dataClass typeDes)
-   :Type(name, getUniqueTypeId(), typeDes)
+   :Type(name, USER_TYPE_ID--, typeDes)
 {
 	baseType_ = NULL; //Symtab::type_Error;
    size_ = size;
 }
 
-boost::shared_ptr<Type> derivedType::getConstituentType(Type::do_share_t) const
+Type *derivedType::getConstituentType() const
 {
    return baseType_;
 }
@@ -1553,7 +1589,10 @@ bool derivedType::operator==(const Type &otype) const {
 }
 
 derivedType::~derivedType()
-{}
+{
+   if(baseType_)
+   	baseType_->decrRefCount();
+}
 
 /*
  * RANGED
@@ -1568,7 +1607,7 @@ rangedType::rangedType(std::string &name, typeId_t ID, dataClass typeDes, int si
 }
 
 rangedType::rangedType(std::string &name, dataClass typeDes, int size, unsigned long low, unsigned long hi) :
-    Type(name, getUniqueTypeId(), typeDes),
+    Type(name, USER_TYPE_ID--, typeDes), 
 	low_(low), 
 	hi_(hi)
 {
@@ -1647,20 +1686,23 @@ Field::Field() :
  * an enumerated type.
  * type = offset = size = 0;
  */
-Field::Field(std::string name, boost::shared_ptr<Type> typ, int offsetVal, visibility_t vis) :
+Field::Field(std::string name, Type *typ, int offsetVal, visibility_t vis) :
 	FIELD_ANNOTATABLE_CLASS(),
    fieldName_(name), 
    type_(typ), 
    vis_(vis), 
    offset_(offsetVal)
-{}
+{
+    if (typ)
+        typ->incrRefCount();
+}
 
 std::string &Field::getName()
 {
    return fieldName_;
 }
 
-boost::shared_ptr<Type> Field::getType(Type::do_share_t)
+Type *Field::getType()
 {
    return type_;
 }
@@ -1688,17 +1730,27 @@ Field::Field(Field &oField) :
    offset_ = oField.offset_;
    fieldName_ = std::string(oField.fieldName_);
    vis_ = oField.vis_;
+
+   if (type_ != NULL)
+      type_->incrRefCount();
 }
 
-Field::~Field() {}
+Field::~Field() 
+{
+   if (type_ != NULL) 
+      type_->decrRefCount();
+}
 
 void Field::fixupUnknown(Module *module) 
 {
    if (type_->getDataClass() == dataUnknownType) 
    {
+      Type *otype = type_;
 	  typeCollection *tc = typeCollection::getModTypeCollection(module);
 	  assert(tc);
-      type_ = tc->findType(type_->getID(), Type::share);
+      type_ = tc->findType(type_->getID());
+      type_->incrRefCount();
+      otype->decrRefCount();
    }
 }
 
@@ -1728,18 +1780,18 @@ void CBlock::fixupUnknowns(Module *module)
 	}
 }
 
-dyn_c_vector<Field *> *CBlock::getComponents()
+tbb::concurrent_vector<Field *> *CBlock::getComponents()
 {
   return &fieldList;
 }
 
-dyn_c_vector<Symbol *> *CBlock::getFunctions()
+tbb::concurrent_vector<Symbol *> *CBlock::getFunctions()
 {
   return &functions;
 }
 
 Type::Type() : ID_(0), name_(std::string("unnamedType")), size_(0),
-               type_(dataUnknownType), updatingSize(false) {}
+               type_(dataUnknownType), updatingSize(false), refCount(1) {}
 fieldListType::fieldListType() : derivedFieldList(NULL) {}
 rangedType::rangedType() : low_(0), hi_(0) {}
 derivedType::derivedType() : baseType_(NULL) {}
@@ -1771,6 +1823,7 @@ Serializable * Type::serialize_impl(SerializerBase *s, const char *tag) THROW_SP
 
 	if (s->isInput())
 	{
+		newt->incrRefCount();
 		switch(type_) 
 		{
 			case dataEnum:
@@ -1831,9 +1884,13 @@ Serializable * Type::serialize_impl(SerializerBase *s, const char *tag) THROW_SP
 	if (s->isInput())
 	{
 		updatingSize = false;
-
-		// Ensure that unique type id is the next (increasingly negative) type ID available for user defined types.
-		updateUniqueTypeId(ID_);
+		refCount = 0;
+		if ((ID_ < 0) && (Type::USER_TYPE_ID >= ID_))
+		{
+			//  USER_TYPE_ID is the next available (increasingly negative)
+			//  type ID available for user defined types.
+			Type::USER_TYPE_ID = ID_ -1;
+		}
 	}
 	return newt;
 }
@@ -1859,7 +1916,7 @@ void typeFunction::serialize_specific(SerializerBase *sb) THROW_SPEC(SerializerE
 	int t_id = retType_ ? retType_->getID() : 0xdeadbeef;
 	int t_dc = (int) (retType_ ? retType_->getDataClass() : dataUnknownType);
 
-	dyn_c_vector<std::pair<int, int> > ptypes;
+	tbb::concurrent_vector<std::pair<int, int> > ptypes;
 	for (unsigned int i = 0; i < params_.size(); ++i)
 		ptypes.push_back(std::pair<int, int>(params_[i]->getID(), params_[i]->getDataClass()));
 
@@ -1969,7 +2026,7 @@ void fieldListType::serialize_fieldlist(SerializerBase *sb, const char *tag) THR
 	   //  TODO:  this dereference should work transparently
 	   // without requiring a manual realloc here
 	   if (sb->isInput())
-		   derivedFieldList = new dyn_c_vector<Field *>();
+		   derivedFieldList = new tbb::concurrent_vector<Field *>();
 	   gtranslate(sb, *derivedFieldList, "derivedFieldList");
    }
    ifxml_end_element(sb, tag);
@@ -2024,7 +2081,7 @@ Serializable *Field::serialize_impl(SerializerBase *sb, const char *tag) THROW_S
 
 Serializable * CBlock::serialize_impl(SerializerBase *sb, const char *tag) THROW_SPEC(SerializerError)
 {
-	dyn_c_vector<Offset> f_offsets;
+	tbb::concurrent_vector<Offset> f_offsets;
 	for (unsigned int i = 0; i < functions.size(); ++i)
 		f_offsets.push_back(functions[i]->getOffset());
 

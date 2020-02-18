@@ -62,12 +62,12 @@ Variable::Variable() :
 	type_(NULL)
 {
 }
-void Variable::setType(boost::shared_ptr<Type> type)
+void Variable::setType(Type *type)
 {
 	type_ = type;
 }
 
-boost::shared_ptr<Type> Variable::getType(Type::do_share_t)
+Type* Variable::getType()
 {
 	module_->exec()->parseTypesNow();
 	return type_;
@@ -152,15 +152,16 @@ Serializable *Variable::serialize_impl(SerializerBase *, const char *) THROW_SPE
 
 std::ostream &operator<<(std::ostream &os, const Dyninst::SymtabAPI::Variable &v)
 {
-	boost::shared_ptr<Type> var_t = (const_cast<Variable &>(v)).getType(Type::share);
+	Type *var_t = (const_cast<Variable &>(v)).getType();
 	std::string tname(var_t ? var_t->getName() : "no_type");
-	const auto& ag = dynamic_cast<const Aggregate &>(v);
+	const Aggregate *ag = dynamic_cast<const Aggregate *>(&v);
+	assert(ag);
 
 	os  << "Variable{"        
 		<< " type=" 
 		<< tname
 	    << " ";
-	os  << 	ag;					   
+	os  << 	*ag;					   
 	os  << 	"}";
 	return os;	
 
@@ -188,7 +189,7 @@ bool Variable::removeSymbol(Symbol *sym)
     return true;
 }
 
-localVar::localVar(std::string name,  boost::shared_ptr<Type> typ, std::string fileName, 
+localVar::localVar(std::string name,  Type *typ, std::string fileName, 
 		int lineNum, FunctionBase *f, std::vector<VariableLocation> *locs) :
 	Serializable(),
 	name_(name), 
@@ -198,6 +199,8 @@ localVar::localVar(std::string name,  boost::shared_ptr<Type> typ, std::string f
         func_(f),
         locsExpanded_(false)
 {
+	type_->incrRefCount();
+
 	if (locs)
 	{
            std::copy(locs->begin(), locs->end(), std::back_inserter(locs_));
@@ -216,6 +219,11 @@ localVar::localVar(localVar &lvar) :
 
         std::copy(lvar.locs_.begin(), lvar.locs_.end(),
                   std::back_inserter(locs_));
+
+	if (type_ != NULL)
+	{
+		type_->incrRefCount();
+	}
 }
 
 bool localVar::addLocation(const VariableLocation &location)
@@ -324,16 +332,28 @@ void localVar::expandLocation(
    return;
 }
 
-localVar::~localVar() {}
+localVar::~localVar()
+{
+	//XXX jdd 5/25/99 More to do later
+	type_->decrRefCount();
+}
 
 void localVar::fixupUnknown(Module *module) 
 {
 	if (type_->getDataClass() == dataUnknownType) 
 	{
+		Type *otype = type_;
 		typeCollection *tc = typeCollection::getModTypeCollection(module);
 		assert(tc);
-        auto t = tc->findType(type_->getID(), Type::share);
-        if(t) type_ = t;
+		type_ = tc->findType(type_->getID());
+
+		if (type_)
+		{
+			type_->incrRefCount();
+			otype->decrRefCount();
+		}
+		else
+			type_ = otype;
 	}
 }
 
@@ -342,12 +362,12 @@ std::string &localVar::getName()
 	return name_;
 }
 
-boost::shared_ptr<Type> localVar::getType(Type::do_share_t)
+Type *localVar::getType()
 {
 	return type_;
 }
 
-bool localVar::setType(boost::shared_ptr<Type> newType) 
+bool localVar::setType(Type *newType) 
 {
 	type_ = newType;
 	return true;

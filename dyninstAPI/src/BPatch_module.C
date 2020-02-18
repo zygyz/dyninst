@@ -251,47 +251,45 @@ bool BPatch_module::parseTypesIfNecessary()
 		BPatch_type *typePtr;
 
 		typePtr = BPatch::bpatch->builtInTypes->findBuiltInType(-10);
-		typePtr->getSymtabType(Dyninst::SymtabAPI::Type::share)->setSize(4);
+		typePtr->getSymtabType()->setSize(4);
 
 		typePtr = BPatch::bpatch->builtInTypes->findBuiltInType(-19);
-		typePtr->getSymtabType(Dyninst::SymtabAPI::Type::share)->setSize(4);
+		typePtr->getSymtabType()->setSize(4);
 	}
 
 	mod->pmod()->mod()->exec()->parseTypesNow();
 	moduleTypes = BPatch_typeCollection::getModTypeCollection(this);
 
-	vector<boost::shared_ptr<Type>> modtypes;
-    mod->pmod()->mod()->getAllTypes(modtypes);
+	vector<Type *> *modtypes = mod->pmod()->mod()->getAllTypes();
 
-	if (modtypes.empty())
+	if (!modtypes)
 		return false;
 
-	for (unsigned i=0; i<modtypes.size(); i++) 
+	for (unsigned i=0; i<modtypes->size(); i++) 
 	{
-		auto typ = modtypes[i];
+		Type *typ = (*modtypes)[i];
 		BPatch_type *type = new BPatch_type(typ);
 		moduleTypes->addType(type);
 	}
 
-	vector<pair<string, boost::shared_ptr<Type> > > globalVars;
-    mod->pmod()->mod()->getAllGlobalVars(globalVars);
+	vector<pair<string, Type *> > *globalVars = mod->pmod()->mod()->getAllGlobalVars();
 
-	if (globalVars.empty())
+	if (!globalVars)
 		return false;
 
-	for (unsigned i=0; i<globalVars.size(); i++)
+	for (unsigned i=0; i<globalVars->size(); i++)
 	{
 		BPatch_type *var_type = NULL;
 		extern AnnotationClass<BPatch_type> TypeUpPtrAnno;
 
-		auto ll_var_type = globalVars[i].second;
-		std::string &var_name = globalVars[i].first;
+		Type *ll_var_type = (*globalVars)[i].second;
+		std::string &var_name = (*globalVars)[i].first;
 
 		assert(ll_var_type);
 
 		if (!ll_var_type->getAnnotation(var_type, TypeUpPtrAnno))
 		{
-			var_type = new BPatch_type(globalVars[i].second);
+			var_type = new BPatch_type((*globalVars)[i].second);
 		}
 		else
 		{
@@ -300,13 +298,13 @@ bool BPatch_module::parseTypesIfNecessary()
 
 		moduleTypes->addGlobalVariable(var_name.c_str(), var_type);
 #if 0
-		if (!globalVars[i].second->getUpPtr())
+		if (!(*globalVars)[i].second->getUpPtr())
 		{
-			new BPatch_type(globalVars[i].second);
+			new BPatch_type((*globalVars)[i].second);
 		}
 
-		moduleTypes->addGlobalVariable(globalVars[i].first.c_str(), 
-				(BPatch_type *)globalVars[i].second->getUpPtr());
+		moduleTypes->addGlobalVariable((*globalVars)[i].first.c_str(), 
+				(BPatch_type *)(*globalVars)[i].second->getUpPtr());
 #endif
 	}
 	return true; 

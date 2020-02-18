@@ -30,7 +30,6 @@
 
 #define INSIDE_INSTRUCTION_API
 
-#include "common/src/vgannotations.h"
 #include "common/src/Types.h"
 
 #include "Operation_impl.h"
@@ -40,7 +39,7 @@
 #include "Register.h"
 #include <map>
 #include <mutex>
-#include "concurrent.h"
+#include <tbb/concurrent_hash_map.h>
 #include "common/src/singleton_object_pool.h"
 
 using namespace NS_x86;
@@ -281,8 +280,8 @@ namespace Dyninst
 
     struct OperationMaps
     {
-        typedef dyn_c_hash_map<entryID, Operation_impl::registerSet > reg_info_t;
-        typedef dyn_c_hash_map<entryID, Operation_impl::VCSet > mem_info_t;
+        typedef tbb::concurrent_hash_map<entryID, Operation_impl::registerSet > reg_info_t;
+        typedef tbb::concurrent_hash_map<entryID, Operation_impl::VCSet > mem_info_t;
     public:
       OperationMaps(Architecture arch)
       {

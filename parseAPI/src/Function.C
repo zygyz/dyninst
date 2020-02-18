@@ -27,8 +27,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-#include "Parser.h"
-
 #include <algorithm>
 
 #include "dyntypes.h"
@@ -36,6 +34,7 @@
 #include "CodeObject.h"
 #include "CFG.h"
 
+#include "Parser.h"
 #include "debug_parse.h"
 #include "util.h"
 #include "LoopAnalyzer.h"
@@ -527,10 +526,9 @@ void Function::set_retstatus(FuncReturnStatus rs)
     } else if (rs == UNKNOWN) {
         _obj->cs()->incrementCounter(PARSE_UNKNOWN_COUNT);
     }
-    // Write access is handled by the lock, so this should always work.
-    // Helgrind gets confused, so the cmp&swap hides the actual write.
-    FuncReturnStatus e = _rs;
-    assert(_rs.compare_exchange_strong(e, rs));
+    race_detector_fake_lock_acquire(race_detector_fake_lock(_rs));
+    _rs.store(rs);
+    race_detector_fake_lock_release(race_detector_fake_lock(_rs));
 }
 
 void 

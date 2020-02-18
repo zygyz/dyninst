@@ -80,15 +80,16 @@ BPatch_type *BPatch_type::createFake(const char *_name) {
  * 
  */
 
-BPatch_type::BPatch_type(boost::shared_ptr<Type> typ_): ID(typ_->getID()), typ(typ_),
+BPatch_type::BPatch_type(Type *typ_): ID(typ_->getID()), typ(typ_),
     refCount(1)
 {
 	// if a derived type, make sure the upPtr is set for the base type.
 	// if it is not set, create a new BPatch_type for the upPtr
 
-	if (typ_->isDerivedType()) 
+	derivedType* derived = dynamic_cast<derivedType*>(typ_);
+	if (derived) 
 	{
-		auto base = typ_->asDerivedType().getConstituentType(Dyninst::SymtabAPI::Type::share);
+		Type* base = derived->getConstituentType();
 
 		assert(base);
 		BPatch_type *bpt = NULL;
@@ -110,28 +111,29 @@ BPatch_type::BPatch_type(boost::shared_ptr<Type> typ_): ID(typ_->getID()), typ(t
 
 	assert(typ_);
 	typ_->addAnnotation(this, TypeUpPtrAnno);
+    typ_->incrRefCount();
 
 	type_ = convertToBPatchdataClass(typ_->getDataClass());
-	type_map[typ.get()] = this;
+	type_map[typ] = this;
 }
 
 BPatch_type::BPatch_type(const char *_name, int _ID, BPatch_dataClass _type) :
    ID(_ID), type_(_type), typ(NULL), refCount(1)
 {
 	if (_name != NULL)
-		typ = Type::make_shared<Type>(_name, ID, convertToSymtabType(_type));
+		typ = new Type(_name, ID, convertToSymtabType(_type));
 	else
-		typ = Type::make_shared<Type>("", ID, convertToSymtabType(_type));
+		typ = new Type("", ID, convertToSymtabType(_type));
 	assert(typ);
 
 	typ->addAnnotation(this, TypeUpPtrAnno);
 
-	type_map[typ.get()] = this;
+	type_map[typ] = this;
 }
 
-BPatch_type *BPatch_type::findOrCreateType(boost::shared_ptr<Dyninst::SymtabAPI::Type> type)  
+BPatch_type *BPatch_type::findOrCreateType(Dyninst::SymtabAPI::Type *type)  
 {
-   std::map<Dyninst::SymtabAPI::Type*, BPatch_type *>::iterator elem = type_map.find(type.get());
+   std::map<Dyninst::SymtabAPI::Type*, BPatch_type *>::iterator elem = type_map.find(type);
    if (elem != type_map.end()) {
       return (*elem).second;
    }
@@ -144,7 +146,10 @@ BPatch_type *BPatch_type::findOrCreateType(boost::shared_ptr<Dyninst::SymtabAPI:
 /* BPatch_type destructor
  * Basic destructor for proper memory management.
  */
-BPatch_type::~BPatch_type() {}
+BPatch_type::~BPatch_type()
+{
+    typ->decrRefCount();
+}
 
 bool BPatch_type::operator==(const BPatch_type &otype) const 
 {
@@ -161,18 +166,23 @@ const char *BPatch_type::getName() const
    return typ->getName().c_str(); 
 }
 
-boost::shared_ptr<Type> BPatch_type::getSymtabType(Type::do_share_t) const 
+Type *BPatch_type::getSymtabType() const 
 {
     return typ;
 }    
 
-boost::shared_ptr<Type> SymtabAPI::convert(const BPatch_type *t, Type::do_share_t) {
-	return t->getSymtabType(Type::share);
+Type *SymtabAPI::convert(const BPatch_type *t) {
+	return t->getSymtabType();
 }
 
 unsigned long BPatch_type::getLow() const 
 {
-    return typ->isRangedType() ? typ->asRangedType().getLow() : 0;
+    rangedInterface *rangetype = dynamic_cast<rangedInterface *>(typ);
+
+    if (!rangetype)
+        return 0;
+
+    return rangetype->getLow();
 }
 
 bool BPatch_type::isCompatible(BPatch_type *otype) 
@@ -182,13 +192,22 @@ bool BPatch_type::isCompatible(BPatch_type *otype)
 
 BPatch_type *BPatch_type::getConstituentType() const 
 {
-   boost::shared_ptr<Type> ctype;
+   Type *ctype = NULL;
 
    // Pointer, reference, typedef
-   if (typ->isDerivedType()) ctype = typ->asDerivedType().getConstituentType(Type::share);
-   else if(typ->isArrayType()) ctype = typ->asArrayType().getBaseType(Type::share);
-   else return NULL;
-   
+   derivedInterface *derivedType = dynamic_cast<derivedInterface *>(typ);
+   if (derivedType) {
+      ctype = derivedType->getConstituentType();
+   }
+   else {
+      // Arrays
+      typeArray *array = dynamic_cast<typeArray *>(typ);
+      if (array) {
+         ctype = array->getBaseType();
+      }
+   }
+
+   if (!ctype) return NULL;
    BPatch_type *bpt = NULL;
    
    if (!ctype->getAnnotation(bpt, TypeUpPtrAnno))
@@ -203,19 +222,26 @@ BPatch_type *BPatch_type::getConstituentType() const
 }
 
 BPatch_Vector<BPatch_field *> *BPatch_type::getComponents() const{
-    if(typ->isFieldListType()) {
-      auto comps = typ->asFieldListType().getComponents();
-      if(!comps) return NULL;
-      BPatch_Vector<BPatch_field *> *components = new BPatch_Vector<BPatch_field *>();
+    fieldListInterface *fieldlisttype = dynamic_cast<fieldListInterface *>(typ);
+    typeEnum *enumtype = dynamic_cast<typeEnum *>(typ);
+    derivedType *derivedtype = dynamic_cast<derivedType *>(typ);
+    if(!fieldlisttype && !enumtype && !derivedtype)
+        return NULL;	
+    BPatch_Vector<BPatch_field *> *components = new BPatch_Vector<BPatch_field *>();
+    if(fieldlisttype) {
+       auto comps = fieldlisttype->getComponents();
+    	if(!comps){
+         delete components;
+         return NULL;
+    	}    
       for(unsigned i = 0 ; i< comps->size(); i++)
          components->push_back(new BPatch_field((*comps)[i]));
     	return components;    
     }
 
-    if (typ->isEnumType()) 
+    if (enumtype) 
 	{
-        auto constants = typ->asEnumType().getConstants();
-        BPatch_Vector<BPatch_field *> *components = new BPatch_Vector<BPatch_field *>();
+        auto constants = enumtype->getConstants();
 	    for (unsigned i = 0; i < constants.size(); i++)
 		{
 	        Field *fld = new Field(constants[i].first.c_str(), NULL);
@@ -224,17 +250,19 @@ BPatch_Vector<BPatch_field *> *BPatch_type::getComponents() const{
 	    return components;    
     }
 
-    if(typ->isDerivedType())
+    if(derivedtype)
         return getConstituentType()->getComponents();
     return NULL;
 }
 
 BPatch_Vector<BPatch_cblock *> *BPatch_type::getCblocks() const 
 {
-	if (!typ->isCommonType())
+	typeCommon *commontype = dynamic_cast<typeCommon *>(typ);
+
+	if (!commontype)
 		return NULL;
 
-	auto cblocks = typ->asCommonType().getCblocks();
+	auto cblocks = commontype->getCblocks();
 
 	if (!cblocks)
 		return NULL;
@@ -260,9 +288,10 @@ BPatch_Vector<BPatch_cblock *> *BPatch_type::getCblocks() const
 }
 
 unsigned long BPatch_type::getHigh() const {
-    if(!typ->isRangedType())
+    rangedInterface *rangetype = dynamic_cast<rangedInterface *>(typ);
+    if(!rangetype)
         return 0;
-    return typ->asRangedType().getHigh(); 
+    return rangetype->getHigh(); 
 }
 
 BPatch_dataClass BPatch_type::convertToBPatchdataClass(dataClass type) {
@@ -405,11 +434,13 @@ BPatch_type *BPatch_field::getType()
 {
 	BPatch_type *bpt= NULL;
 	assert(fld);
-    assert(fld->getType(Type::share));
-	if (!fld->getType(Type::share)->getAnnotation(bpt, TypeUpPtrAnno))
+	Type *t = fld->getType();
+	assert(t);
+
+	if (!t->getAnnotation(bpt, TypeUpPtrAnno))
 	{
 		//fprintf(stderr, "%s[%d]:  failed to get up ptr here\n", FILE__, __LINE__);
-		return new BPatch_type(fld->getType(Type::share));
+		return new BPatch_type(fld->getType());
 	}
 
 	assert(bpt);
@@ -449,7 +480,7 @@ BPatch_localVar::BPatch_localVar(localVar *lVar_) : lVar(lVar_)
 {
 	assert(lVar);
 
-	auto t = lVar->getType(Type::share);
+	Type *t = lVar->getType();
 	assert(t);
 	
 	if (!t->getAnnotation(type, TypeUpPtrAnno))

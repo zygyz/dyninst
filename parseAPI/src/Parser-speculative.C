@@ -33,8 +33,6 @@
  * for function preambles in gaps between known code regions.
  */
 
-#include "ParseData.h"
-
 #include "common/src/arch.h"
 
 #include "parseAPI/h/CodeObject.h"
@@ -43,6 +41,7 @@
 #include "parseAPI/h/InstructionAdapter.h"
 
 #include "Parser.h"
+#include "ParseData.h"
 #include "debug_parse.h"
 #include "util.h"
 

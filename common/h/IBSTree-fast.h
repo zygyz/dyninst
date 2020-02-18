@@ -42,7 +42,7 @@
 #include <boost/mpl/inherit.hpp>
 #include <iostream>
 
-#include "concurrent.h"
+#include "pfq-rwlock.h"
 
 namespace Dyninst
 {
@@ -51,7 +51,7 @@ namespace Dyninst
     class IBSTree_fast {
     private:
         // reader-writer lock to coordinate concurrent operations
-        mutable dyn_rwlock rwlock;
+        mutable pfq_rwlock_t rwlock;
 
     public:
         typedef typename ITYPE::type interval_type;
@@ -68,6 +68,7 @@ namespace Dyninst
 
         IBSTree_fast()
         {
+            pfq_rwlock_init(rwlock);
         }
         ~IBSTree_fast()
         {
@@ -75,13 +76,17 @@ namespace Dyninst
         }
         int size() const
         {
-            dyn_rwlock::shared_lock l(rwlock);
-            return overlapping_intervals.size() + unique_intervals.size();
+            pfq_rwlock_read_lock(rwlock);
+            int result = overlapping_intervals.size() + unique_intervals.size();
+            pfq_rwlock_read_unlock(rwlock);
+	    return result;
         }
         bool empty() const
         {
-            dyn_rwlock::shared_lock l(rwlock);
-            return unique_intervals.empty() && overlapping_intervals.empty();
+            pfq_rwlock_read_lock(rwlock);
+            bool result = unique_intervals.empty() && overlapping_intervals.empty();
+            pfq_rwlock_read_unlock(rwlock);
+	    return result;
         }
         void insert(ITYPE*);
         void remove(ITYPE*);
@@ -92,10 +97,11 @@ namespace Dyninst
         void clear();
         friend std::ostream& operator<<(std::ostream& stream, const IBSTree_fast<ITYPE>& tree)
         {
-            dyn_rwlock::shared_lock l(tree.rwlock);
+            pfq_rwlock_read_lock(tree.rwlock);
             std::copy(tree.unique_intervals.begin(), tree.unique_intervals.end(),
                       std::ostream_iterator<typename Dyninst::IBSTree_fast<ITYPE>::interval_set::value_type>(stream, "\n"));
             stream << tree.overlapping_intervals;
+            pfq_rwlock_read_unlock(tree.rwlock);
             return stream;
         }
 
@@ -104,8 +110,10 @@ namespace Dyninst
     template <class ITYPE>
     void IBSTree_fast<ITYPE>::insert(ITYPE* entry)
     {
-        dyn_rwlock::unique_lock l(rwlock);
+        pfq_rwlock_node_t me;
+        pfq_rwlock_write_lock(rwlock, me);
 
+        do {
         // find in overlapping first
         std::set<ITYPE*> dummy;
         if(overlapping_intervals.find(entry, dummy))
@@ -115,7 +123,7 @@ namespace Dyninst
 	  typename interval_set::iterator lower =
 	    unique_intervals.upper_bound(entry->low());
 	  // lower.high first >= entry.low
-	  if (lower != unique_intervals.end() && (**lower == *entry)) return;
+	  if (lower != unique_intervals.end() && (**lower == *entry)) break;
 	  typename interval_set::iterator upper = lower;
 	  while(upper != unique_intervals.end() &&
 		(*upper)->low() <= entry->high())
@@ -133,37 +141,47 @@ namespace Dyninst
 	      unique_intervals.insert(entry);
 	    }
 	}
+        } while(0);
+
+        pfq_rwlock_write_unlock(rwlock, me);
     }
     template <class ITYPE>
     void IBSTree_fast<ITYPE>::remove(ITYPE* entry)
     {
-        dyn_rwlock::unique_lock l(rwlock);
+        pfq_rwlock_node_t me;
+        pfq_rwlock_write_lock(rwlock, me);
 
         overlapping_intervals.remove(entry);
         typename interval_set::iterator found = unique_intervals.find(entry->high());
         if(found != unique_intervals.end() && *found == entry) unique_intervals.erase(found);
+        pfq_rwlock_write_unlock(rwlock, me);
     }
     template<class ITYPE>
     int IBSTree_fast<ITYPE>::find(interval_type X, std::set<ITYPE*> &results) const
     {
-      dyn_rwlock::shared_lock l(rwlock);
-      int num_old_results = results.size();
+      int count = 0;
+      pfq_rwlock_read_lock(rwlock);
+      do {
+        int num_old_results = results.size();
 
-      int num_overlapping = overlapping_intervals.find(X, results);
-      if(num_overlapping > 0) return num_overlapping;
+        int num_overlapping = overlapping_intervals.find(X, results);
+        if(num_overlapping > 0) { count = num_overlapping; break; }
 
-      typename interval_set::const_iterator found_unique = unique_intervals.upper_bound(X);
-      if(found_unique != unique_intervals.end())
-      {
-        if((*found_unique)->low() > X) return 0;
-        results.insert(*found_unique);
-      }
-      return results.size() - num_old_results;
+        typename interval_set::const_iterator found_unique = unique_intervals.upper_bound(X);
+        if(found_unique != unique_intervals.end())
+        {
+	  if((*found_unique)->low() > X) { count = 0; break; }
+            results.insert(*found_unique);
+        }
+        count = results.size() - num_old_results;
+      } while (0);
+      pfq_rwlock_read_unlock(rwlock);
+      return count;
     }
     template <typename ITYPE>
     int IBSTree_fast<ITYPE>::find(ITYPE* I, std::set<ITYPE*>&results) const
     {
-        dyn_rwlock::shared_lock l(rwlock);
+        pfq_rwlock_read_lock(rwlock);
         int num_old_results = results.size();
         int num_overlapping = overlapping_intervals.find(I, results);
         if(num_overlapping) return num_overlapping;
@@ -175,12 +193,13 @@ namespace Dyninst
             ++ub;
         }
         int result = results.size() - num_old_results;
+        pfq_rwlock_read_unlock(rwlock);
 	return result;
     }
     template<typename ITYPE>
     void IBSTree_fast<ITYPE>::successor(interval_type X, std::set<ITYPE*>& results) const
     {
-        dyn_rwlock::shared_lock l(rwlock);
+        pfq_rwlock_read_lock(rwlock);
         ITYPE* overlapping_ub = overlapping_intervals.successor(X);
 
         typename interval_set::const_iterator unique_ub = unique_intervals.upper_bound(X);
@@ -196,6 +215,7 @@ namespace Dyninst
         {
             results.insert(*unique_ub);
         }
+        pfq_rwlock_read_unlock(rwlock);
     }
     template <typename ITYPE>
     ITYPE* IBSTree_fast<ITYPE>::successor(interval_type X) const
@@ -209,9 +229,11 @@ namespace Dyninst
     template <typename ITYPE>
     void IBSTree_fast<ITYPE>::clear()
     {
-        dyn_rwlock::unique_lock l(rwlock);
+        pfq_rwlock_node_t me;
+        pfq_rwlock_write_lock(rwlock, me);
         overlapping_intervals.clear();
         unique_intervals.clear();
+        pfq_rwlock_write_unlock(rwlock, me);
     }
 
 }

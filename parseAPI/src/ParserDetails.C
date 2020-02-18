@@ -27,14 +27,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-#include "ParseData.h"
-
 #include "CodeObject.h"
 #include "CFG.h"
 #include "ParseCallback.h"
 
 #include "Parser.h"
 #include "ParserDetails.h"
+#include "ParseData.h"
 #include "debug_parse.h"
 #include "util.h"
 
@@ -104,7 +103,7 @@ getBlockInsns(Block &blk, std::set<Address> &addrs) {
     unsigned bufSize = blk.size();
     using namespace InstructionAPI;
     const unsigned char *bufferBegin = (const unsigned char *)
-            (blk.region()->getPtrToInstruction(blk.start()));
+            (blk.obj()->cs()->getPtrToInstruction(blk.start()));
     InstructionDecoder dec = InstructionDecoder
             (bufferBegin, bufSize, blk.region()->getArch());
     InstructionAdapter_t *ah = InstructionAdapter_t::makePlatformIA_IAPI(blk.obj()->cs()->getArch(), dec, blk.start(),
@@ -271,7 +270,6 @@ Parser::tamper_post_processing(LockFreeQueue<ParseFrame *> &work_queue, ParseFra
     }
     // create frame for TAMPER_ABS target in this object or parse
     // in target object 
-    /*
     if (pf->func->tampersStack() == TAMPER_ABS) {
         Address objLoad = 0;
         CodeObject *targObj = NULL;
@@ -284,7 +282,7 @@ Parser::tamper_post_processing(LockFreeQueue<ParseFrame *> &work_queue, ParseFra
                                                   tf->func->addr())) {
                     init_frame(*tf);
                     frames.insert(tf);
-                    _parse_data->registerFrame(tf);
+                    _parse_data->record_frame(tf);
                     _pcb.updateCodeBytes(pf->func->_tamper_addr - objLoad);
                 }
                 if (tf) {
@@ -303,7 +301,6 @@ Parser::tamper_post_processing(LockFreeQueue<ParseFrame *> &work_queue, ParseFra
                        pf->func->_tamper_addr);
         }
     }
-    */
 }
 
 
@@ -394,7 +391,7 @@ void Parser::ProcessCallInsn(
     _pcb.interproc_cf(frame.func, cur, ah->getAddr(), &det);
 }
 
-bool Parser::ProcessCFInsn(
+void Parser::ProcessCFInsn(
         ParseFrame &frame,
         Block *cur,
         InstructionAdapter_t *ah)
@@ -402,7 +399,6 @@ bool Parser::ProcessCFInsn(
     FuncReturnStatus insn_ret;
     Edges_t edges_out;
     ParseWorkBundle *bundle = NULL;
-    bool set_func_to_return = false;
 
     region_data::edge_data_map::accessor a;
     region_data::edge_data_map* edm = _parse_data->get_edge_data_map(frame.func->region());
@@ -483,7 +479,6 @@ bool Parser::ProcessCFInsn(
         // In such cases, we do not have concrete evidence that
         // the function cannot not return, so we mark this function as RETURN.
         frame.func->set_retstatus(RETURN);
-        set_func_to_return = true;
     }
 
     // Return instructions need extra processing
@@ -607,5 +602,4 @@ bool Parser::ProcessCFInsn(
     if (!frame.func->_cleans_stack && ah->cleansStack()) {
         frame.func->_cleans_stack = true;
     }
-    return set_func_to_return;
 }

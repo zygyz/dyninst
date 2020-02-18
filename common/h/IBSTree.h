@@ -39,7 +39,7 @@
 
 #include <assert.h>
 #include "dyntypes.h"
-#include "concurrent.h"
+#include "pfq-rwlock.h"
 
 #include <set>
 #include <limits>
@@ -190,7 +190,7 @@ private:
     IBSNode<ITYPE> *root;
 
     /** reader-writer lock to coordinate concurrent operations **/
-    mutable dyn_rwlock rwlock;
+    mutable pfq_rwlock_t rwlock;
 
     /** RB-tree left rotation with modification to enforce IBS invariants **/
     void leftRotate(IBSNode<ITYPE> *);
@@ -258,6 +258,7 @@ public:
         treeSize(0),
         root(nil)
     {
+        pfq_rwlock_init(rwlock);
         //stats_.add("insert",TimerStat);
         //stats_.add("remove",TimerStat);
     }     
@@ -271,15 +272,17 @@ public:
         return treeSize.load();
     }
     const_iterator begin() const {
-        dyn_rwlock::shared_lock l(rwlock);
+        pfq_rwlock_read_lock(rwlock);
         iterator b = root;
         while(b->left) b = b->left;
+        pfq_rwlock_read_unlock(rwlock);
         return b;
     }
     const_iterator end() const {
-        dyn_rwlock::shared_lock l(rwlock);
+        pfq_rwlock_read_lock(rwlock);
         iterator e = root;
         while(e->right) e = e->right;
+        pfq_rwlock_read_unlock(rwlock);
         return e;
     }
     int CountMarks() const;
@@ -307,8 +310,9 @@ public:
     void clear();
 
     void PrintPreorder() {
-        dyn_rwlock::shared_lock l(rwlock);
+        pfq_rwlock_read_lock(rwlock);
         PrintPreorder(root, 0);
+        pfq_rwlock_read_unlock(rwlock);
     }
 };
 
@@ -781,7 +785,8 @@ void IBSTree<ITYPE>::insert(ITYPE *range)
 {
     //stats_.startTimer("insert");
 
-    dyn_rwlock::unique_lock l(rwlock);
+    pfq_rwlock_node_t me;
+    pfq_rwlock_write_lock(rwlock, me);
 
     // Insert the endpoints of the range, rebalancing if new
     // nodes were created
@@ -793,6 +798,8 @@ void IBSTree<ITYPE>::insert(ITYPE *range)
     if(x) {
         insertFixup(x);
     }
+
+    pfq_rwlock_write_unlock(rwlock, me);
 
     //stats_.stopTimer("insert");
 }
@@ -816,21 +823,27 @@ void IBSTree<ITYPE>::remove(ITYPE * range)
     // the tests of the insertion procedures would avoid many of these
     // O(log n) lookups
 
-    dyn_rwlock::unique_lock l(rwlock);
+    pfq_rwlock_node_t me;
+    pfq_rwlock_write_lock(rwlock, me);
 
     removeInterval(root,range);
 
-    //stats_.stopTimer("remove");
+    pfq_rwlock_write_unlock(rwlock, me);
+   
+    //stats_.startTimer("remove"); 
 }
 
 template<class ITYPE>
 int IBSTree<ITYPE>::find(interval_type X, std::set<ITYPE *> &out) const
 {
     unsigned size = out.size();
-    {
-        dyn_rwlock::shared_lock l(rwlock);
-        findIntervals(X,root,out);
-    }
+
+    pfq_rwlock_read_lock(rwlock);
+
+    findIntervals(X,root,out);
+
+    pfq_rwlock_read_unlock(rwlock);
+
     return out.size() - size;
 }
 
@@ -838,10 +851,13 @@ template<class ITYPE>
 int IBSTree<ITYPE>::find(ITYPE * I, std::set<ITYPE *> &out) const
 {
     unsigned size = out.size();
-    {
-        dyn_rwlock::shared_lock l(rwlock);
-        findIntervals(I,root,out);
-    }
+
+    pfq_rwlock_read_lock(rwlock);
+
+    findIntervals(I,root,out);
+
+    pfq_rwlock_read_unlock(rwlock);
+
     return out.size() - size;
 }
 
@@ -853,7 +869,7 @@ void IBSTree<ITYPE>::successor(interval_type X, std::set<ITYPE *> &out) const
 
     std::vector< IBSNode<ITYPE>* > stack;
 
-    dyn_rwlock::shared_lock l(rwlock);
+    pfq_rwlock_read_lock(rwlock);
 
     /* last will hold the node immediately greater than X */
     while(1) {
@@ -890,16 +906,20 @@ void IBSTree<ITYPE>::successor(interval_type X, std::set<ITYPE *> &out) const
             n = n->left;
         }
     }
+
+    pfq_rwlock_read_unlock(rwlock);
 }
 
 template<class ITYPE>
 ITYPE * IBSTree<ITYPE>::successor(interval_type X) const
 {
     std::set<ITYPE *> out;
-    {
-        dyn_rwlock::shared_lock l(rwlock);
-        successor(X,out);
-    }
+    
+    pfq_rwlock_read_lock(rwlock);
+
+    successor(X,out);
+
+    pfq_rwlock_read_unlock(rwlock);
 
     assert( out.size() <= 1 );
     if(!out.empty())
@@ -912,11 +932,14 @@ template<class ITYPE>
 void IBSTree<ITYPE>::clear() {
     if(root == nil) return;
 
-    dyn_rwlock::unique_lock l(rwlock);
+    pfq_rwlock_node_t me;
+    pfq_rwlock_write_lock(rwlock, me);
 
     destroy(root);
     root = nil;
     treeSize.store(0);
+
+    pfq_rwlock_write_unlock(rwlock, me);
 }
 
 template<class ITYPE>
@@ -924,13 +947,14 @@ int IBSTree<ITYPE>::height(IBSNode<ITYPE> *n)
 {
     if(!n)
         return 0;
+    
+    pfq_rwlock_read_lock(rwlock);
+    
+    int leftHeight = 1 + height(n->left);
+    int rightHeight = 1 + height(n->right);
 
-    int leftHeight, rightHeight;
-    {
-        dyn_rwlock::shared_lock l(rwlock);
-        leftHeight = 1 + height(n->left);
-        rightHeight = 1 + height(n->right);
-    }
+    pfq_rwlock_read_unlock(rwlock);
+
     if(leftHeight > rightHeight)
         return leftHeight;
     else
@@ -963,8 +987,13 @@ void IBSTree<ITYPE>::PrintPreorder(IBSNode<ITYPE> *n, int indent)
 template<class ITYPE>
 int IBSTree<ITYPE>::CountMarks() const
 {
-    dyn_rwlock::shared_lock l(rwlock);
-    return CountMarks(root);
+    pfq_rwlock_read_lock(rwlock);
+
+    int nmarks = CountMarks(root);
+
+    pfq_rwlock_read_unlock(rwlock);
+
+    return nmarks;
 }
 }/* Dyninst */
 

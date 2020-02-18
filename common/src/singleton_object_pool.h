@@ -32,9 +32,10 @@
 
 #include "pool_allocators.h"
 #include "dthread.h"
+#include <tbb/scalable_allocator.h>
 
 // This is only safe for objects with nothrow constructors...
-template <typename T, typename Alloc = std::allocator<T> >
+template <typename T, typename Alloc = tbb::scalable_allocator<T> >
 class singleton_object_pool : public Alloc
 {
     using typename Alloc::pointer;

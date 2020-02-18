@@ -164,21 +164,21 @@ BPatch::BPatch()
     APITypes = BPatch_typeCollection::getGlobalTypeCollection();
 
     stdTypes = BPatch_typeCollection::getGlobalTypeCollection();
-    vector<boost::shared_ptr<Type>> sTypes;
-    Symtab::getAllstdTypes(sTypes);
+    vector<Type *> *sTypes = Symtab::getAllstdTypes();
     BPatch_type* type = NULL;
-    for(const auto& t: sTypes) {
+    for(const auto& t: *sTypes) {
         stdTypes->addType(type = new BPatch_type(t));
         type->decrRefCount();
     }
-    sTypes.clear();
+    delete sTypes;
 
     builtInTypes = new BPatch_builtInTypeCollection;
-    Symtab::getAllbuiltInTypes(sTypes);
-    for(const auto& t: sTypes) {
+    sTypes = Symtab::getAllbuiltInTypes();
+    for(const auto& t: *sTypes) {
         builtInTypes->addBuiltInType(type = new BPatch_type(t));
         type->decrRefCount();
     }
+    delete sTypes;
 
     //loadNativeDemangler();
 
@@ -1400,11 +1400,11 @@ BPatch_type * BPatch::createEnum( const char * name,
       return NULL;
     }
     string typeName = name;
-    dyn_c_vector<pair<string, int> *>elements;
+    tbb::concurrent_vector<pair<string, int> *>elements;
     for (unsigned int i=0; i < elementNames.size(); i++) 
         elements.push_back(new pair<string, int>(elementNames[i], elementIds[i]));
     
-    boost::shared_ptr<Type> typ(typeEnum::create( typeName, elements));
+    Type *typ = typeEnum::create( typeName, elements);
     if (!typ) return NULL;
     
     BPatch_type *newType = new BPatch_type(typ);
@@ -1429,11 +1429,11 @@ BPatch_type * BPatch::createEnum( const char * name,
 				        BPatch_Vector<char *> &elementNames)
 {
     string typeName = name;
-    dyn_c_vector<pair<string, int> *>elements;
+    tbb::concurrent_vector<pair<string, int> *>elements;
     for (unsigned int i=0; i < elementNames.size(); i++) 
         elements.push_back(new pair<string, int>(elementNames[i], i));
     
-    boost::shared_ptr<Type> typ(typeEnum::create( typeName, elements));
+    Type *typ = typeEnum::create( typeName, elements);
     if (!typ) return NULL;
     
     BPatch_type *newType = new BPatch_type(typ);
@@ -1465,15 +1465,15 @@ BPatch_type * BPatch::createStruct( const char * name,
    }
    
    string typeName = name;
-   dyn_c_vector<pair<string, boost::shared_ptr<Type> > *> fields;
+   tbb::concurrent_vector<pair<string, Type *> *> fields;
    for(i=0; i<fieldNames.size(); i++)
    {
       if(!fieldTypes[i])
          return NULL;
-      fields.push_back(new pair<string, boost::shared_ptr<Type>>(fieldNames[i], fieldTypes[i]->getSymtabType(Type::share)));
+      fields.push_back(new pair<string, Type *> (fieldNames[i], fieldTypes[i]->getSymtabType()));
    }	
    
-   boost::shared_ptr<Type> typ(typeStruct::create(typeName, fields));
+   Type *typ = typeStruct::create(typeName, fields);
    if (!typ) return NULL;
    
    BPatch_type *newType = new BPatch_type(typ);
@@ -1505,15 +1505,15 @@ BPatch_type * BPatch::createUnion( const char * name,
     }
 
     string typeName = name;
-    dyn_c_vector<pair<string, boost::shared_ptr<Type> > *> fields;
+    tbb::concurrent_vector<pair<string, Type *> *> fields;
     for(i=0; i<fieldNames.size(); i++)
     {
         if(!fieldTypes[i])
 	    return NULL;
-        fields.push_back(new pair<string, boost::shared_ptr<Type> > (fieldNames[i], fieldTypes[i]->getSymtabType(Type::share)));
+        fields.push_back(new pair<string, Type *> (fieldNames[i], fieldTypes[i]->getSymtabType()));
     }	
     
-    boost::shared_ptr<Type> typ(typeUnion::create(typeName, fields));
+    Type *typ = typeUnion::create(typeName, fields);
     if (!typ) return NULL;
     
     BPatch_type *newType = new BPatch_type(typ);
@@ -1542,7 +1542,7 @@ BPatch_type * BPatch::createArray( const char * name, BPatch_type * ptr,
         return NULL;
         
     string typeName = name;
-    boost::shared_ptr<Type> typ(typeArray::create(typeName, ptr->getSymtabType(Type::share), low, hi));
+    Type *typ = typeArray::create(typeName, ptr->getSymtabType(), low, hi);
     if (!typ) return NULL;
     
     newType = new BPatch_type(typ);
@@ -1569,7 +1569,7 @@ BPatch_type * BPatch::createPointer(const char * name, BPatch_type * ptr,
         return NULL;
     
     string typeName = name;
-    boost::shared_ptr<Type> typ(typePointer::create(typeName, ptr->getSymtabType(Type::share)));
+    Type *typ = typePointer::create(typeName, ptr->getSymtabType());
     if (!typ) return NULL;
     
     newType = new BPatch_type(typ);
@@ -1594,7 +1594,7 @@ BPatch_type * BPatch::createScalar( const char * name, int size)
     BPatch_type * newType;
     
     string typeName = name;
-    boost::shared_ptr<Type> typ(typeScalar::create(typeName, size));
+    Type *typ = typeScalar::create(typeName, size);
     if (!typ) return NULL;
     
     newType = new BPatch_type(typ);
@@ -1620,7 +1620,7 @@ BPatch_type * BPatch::createTypedef( const char * name, BPatch_type * ptr)
         return NULL;
     
     string typeName = name;
-    boost::shared_ptr<Type> typ(typeTypedef::create(typeName, ptr->getSymtabType(Type::share)));
+    Type *typ = typeTypedef::create(typeName, ptr->getSymtabType());
     if (!typ) return NULL;
     
     newType = new BPatch_type(typ);

@@ -43,7 +43,8 @@
 
 #include <boost/thread/recursive_mutex.hpp>
 #include <boost/thread/lockable_adapter.hpp>
-#include "concurrent.h"
+#include <boost/atomic.hpp>
+#include <tbb/concurrent_hash_map.h>
 
 class StatContainer;
 
@@ -151,8 +152,7 @@ class PARSER_EXPORT CodeSource : public Dyninst::InstructionSource {
      * locations or using speculative methods) is supported
      * without hints.
      */
-    //std::vector<Hint> _hints;
-    dyn_c_vector<Hint> _hints;
+    std::vector<Hint> _hints;
 
     /*
      * Lists of known non-returning functions (by name)
@@ -163,7 +163,7 @@ class PARSER_EXPORT CodeSource : public Dyninst::InstructionSource {
     static dyn_hash_map<int, bool> non_returning_syscalls_x86_64;
 
  public:
-    typedef dyn_c_hash_map<void *, CodeRegion*> RegionMap;
+    typedef tbb::concurrent_hash_map<void *, CodeRegion*> RegionMap;
 
     /* Returns true if the function at an address is known to be
        non returning (e.g., is named `exit' on Linux/ELF, etc.).
@@ -182,8 +182,7 @@ class PARSER_EXPORT CodeSource : public Dyninst::InstructionSource {
     virtual Address loadAddress() const { return 0; }
 
     std::map< Address, std::string > & linkage() const { return _linkage; }
-//    std::vector< Hint > const& hints() const { return _hints; } 
-    dyn_c_vector<Hint> const& hints() const { return _hints; }
+    std::vector< Hint > const& hints() const { return _hints; } 
     std::vector<CodeRegion *> const& regions() const { return _regions; }
     int findRegions(Address addr, std::set<CodeRegion *> & ret) const;
     bool regionsOverlap() const { return _regions_overlap; }
@@ -260,7 +259,7 @@ class PARSER_EXPORT SymtabCodeSource : public CodeSource, public boost::lockable
  private:
     SymtabAPI::Symtab * _symtab;
     bool owns_symtab;
-    mutable dyn_threadlocal<CodeRegion *>  _lookup_cache;
+    mutable boost::atomic<CodeRegion *> _lookup_cache;
 
     // Stats information
     StatContainer * stats_parse;

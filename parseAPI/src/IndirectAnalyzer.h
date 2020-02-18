@@ -19,16 +19,12 @@ class IndirectControlFlowAnalyzer {
     void FindAllThunks();
     void ReadTable(AST::Ptr,
                    AbsRegion,
-                   StridedInterval &,
-                   int ,
-                   bool, 
-                   bool, 
-                   std::set<Address> &,
-                   std::vector<std::pair<Address, Dyninst::ParseAPI::EdgeTypeEnum> > &,
-                   Address &,
-                   Address &,
-                   int &,
-                   std::map<Address, Address>&);
+		   StridedInterval &,
+		   int ,
+		   bool, 
+		   bool, 
+		   std::set<Address> &,
+		   std::vector<std::pair<Address, Dyninst::ParseAPI::EdgeTypeEnum> > &);
     int GetMemoryReadSize(Assignment::Ptr loc);
     bool IsZeroExtend(Assignment::Ptr loc);
     bool FindJunkInstruction(Address);

@@ -30,8 +30,6 @@
 #ifndef _PARSE_DATA_H_
 #define _PARSE_DATA_H_
 
-#include "common/src/vgannotations.h"
-
 #include <set>
 #include <vector>
 #include <queue>
@@ -44,12 +42,14 @@
 #include "ParserDetails.h"
 #include "debug_parse.h"
 
+#include "race-detector-annotations.h"
+
 #include <boost/thread/locks.hpp>
 #include <boost/thread/lockable_adapter.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 #include <boost/atomic.hpp>
 
-#include "concurrent.h"
+#include "tbb/concurrent_hash_map.h"
 
 using namespace std;
 
@@ -67,7 +67,6 @@ class ParseFrame : public boost::lockable_adapter<boost::recursive_mutex> {
         UNPARSED,
         PROGRESS,
         CALL_BLOCKED,
-        RETURN_SET,
         PARSED,
         FRAME_ERROR,
         BAD_LOOKUP,  // error for lookups that return Status
@@ -151,18 +150,25 @@ class ParseFrame : public boost::lockable_adapter<boost::recursive_mutex> {
         seed(NULL),
         _pd(pd)
     {
+	busy.store(false);
     }
 
     ~ParseFrame();
 
     Status status() const {
+      race_detector_fake_lock_acquire(race_detector_fake_lock(_status));
       Status result = _status.load();
+      race_detector_fake_lock_release(race_detector_fake_lock(_status));
       return result;
     }
     void set_status(Status);
-    void set_internal_status(Status s) { _status.store(s); } 
+    bool swap_busy(bool value) {
+      return busy.exchange(value);
+    }
+;
  private:
     boost::atomic<Status> _status;
+    boost::atomic<bool> busy;
     ParseData * _pd;
 };
 
@@ -184,19 +190,19 @@ class region_data {
 public:
     // Function lookups
     Dyninst::IBSTree_fast<FuncExtent> funcsByRange;
-    dyn_c_hash_map<Address, Function *> funcsByAddr;
+    tbb::concurrent_hash_map<Address, Function *> funcsByAddr;
 
     // Block lookups
     Dyninst::IBSTree_fast<Block > blocksByRange;
-    dyn_c_hash_map<Address, Block *> blocksByAddr;
+    tbb::concurrent_hash_map<Address, Block *> blocksByAddr;
 
     // Parsing internals 
-    dyn_c_hash_map<Address, ParseFrame *> frame_map;
-    dyn_c_hash_map<Address, ParseFrame::Status> frame_status;
+    tbb::concurrent_hash_map<Address, ParseFrame *> frame_map;
+    tbb::concurrent_hash_map<Address, ParseFrame::Status> frame_status;
 
     // Edge parsing records
     // We only want one thread to create edges for a location
-    typedef dyn_c_hash_map<Address, edge_parsing_data> edge_data_map;
+    typedef tbb::concurrent_hash_map<Address, edge_parsing_data> edge_data_map; 
     edge_data_map edge_parsing_status;
 
     Function * findFunc(Address entry);
@@ -223,51 +229,55 @@ public:
     }
     ParseFrame* findFrame(Address addr) const {
         ParseFrame *result = NULL;
+        race_detector_fake_lock_acquire(race_detector_fake_lock(frame_map));
 	{
-	  dyn_c_hash_map<Address, ParseFrame*>::const_accessor a;
+	  tbb::concurrent_hash_map<Address, ParseFrame*>::const_accessor a;
 	  if(frame_map.find(a, addr)) result = a->second;
 	}
+        race_detector_fake_lock_release(race_detector_fake_lock(frame_map));
         return result;
-    }
-    ParseFrame* registerFrame(Address addr, ParseFrame* pf) {
-        dyn_c_hash_map<Address, ParseFrame*>::accessor a;
-        if (frame_map.insert(a, addr)) {
-            a->second = pf;
-            return pf;
-        } else {
-            return NULL;
-        }
     }
     ParseFrame::Status getFrameStatus(Address addr) {
         ParseFrame::Status ret;
-        dyn_c_hash_map<Address, ParseFrame::Status>::const_accessor a;
+        race_detector_fake_lock_acquire(race_detector_fake_lock(frame_status));
+        {
+        tbb::concurrent_hash_map<Address, ParseFrame::Status>::const_accessor a;
         if(frame_status.find(a, addr)) {
             ret = a->second;
         } else {
             ret = ParseFrame::BAD_LOOKUP;
         }
+        }
+        race_detector_fake_lock_release(race_detector_fake_lock(frame_status));
         return ret;
     }
 
 
     void setFrameStatus(Address addr, ParseFrame::Status status)
     {
-        dyn_c_hash_map<Address, ParseFrame::Status>::accessor a;
-        if(!frame_status.insert(a, make_pair(addr, status))) {
-            a->second = status;
-        }
+        race_detector_fake_lock_acquire(race_detector_fake_lock(frame_status));
+	{
+	  tbb::concurrent_hash_map<Address, ParseFrame::Status>::accessor a;
+	  frame_status.insert(a, make_pair(addr, status));
+      a->second = status;
+	}
+        race_detector_fake_lock_release(race_detector_fake_lock(frame_status));
     }
 
-    Function* record_func(Function* f) {
-      if (funcsByAddr.insert(std::make_pair(f->addr(), f))) {
-          return f;
-      }
-      return NULL;
+    void record_func(Function* f) {
+        race_detector_fake_lock_acquire(race_detector_fake_lock(funcsByAddr));
+	{
+	  tbb::concurrent_hash_map<Address, Function*>::accessor a;
+	  funcsByAddr.insert(a, std::make_pair(f->addr(), f));
+	}
+        race_detector_fake_lock_release(race_detector_fake_lock(funcsByAddr));
+
     }
     Block* record_block(Block* b) {
         Block* ret = NULL;
-        {
-            dyn_c_hash_map<Address, Block*>::accessor a;
+        race_detector_fake_lock_acquire(race_detector_fake_lock(blocksByAddr));
+	    {
+            tbb::concurrent_hash_map<Address, Block*>::accessor a;
             bool inserted = blocksByAddr.insert(a, std::make_pair(b->start(), b));
             // Inserting failed when another thread has inserted a block with the same starting address
             if(!inserted) {
@@ -276,11 +286,21 @@ public:
                 ret = b;
             }
         }
+        race_detector_fake_lock_release(race_detector_fake_lock(blocksByAddr));
         return ret;
     }
     void insertBlockByRange(Block* b) {
         blocksByRange.insert(b);
     }
+    void record_frame(ParseFrame* pf) {
+        race_detector_fake_lock_acquire(race_detector_fake_lock(frame_map));
+	{
+	  tbb::concurrent_hash_map<Address, ParseFrame*>::accessor a;
+	  frame_map.insert(a, make_pair(pf->func->addr(), pf));
+	}
+        race_detector_fake_lock_release(race_detector_fake_lock(frame_map));
+    }
+
 	 // Find functions within [start,end)
 	 int findFuncs(Address start, Address end, set<Function *> & funcs);
     region_data(CodeObject* obj, CodeRegion* reg) {
@@ -293,8 +313,9 @@ public:
 
     edge_parsing_data set_edge_parsed(Address addr, Function *f, Block *b) {
         edge_parsing_data ret;
+        race_detector_fake_lock_acquire(race_detector_fake_lock(edge_parsing_status));
 	{
-	  dyn_c_hash_map<Address, edge_parsing_data>::accessor a;
+	  tbb::concurrent_hash_map<Address, edge_parsing_data>::accessor a;
           // A successful insertion means the thread should 
           // continue to create edges. We return the passed in Function*
           // as indication of successful insertion.
@@ -309,6 +330,7 @@ public:
 	      ret.b = b;
 	  }
 	}
+        race_detector_fake_lock_release(race_detector_fake_lock(edge_parsing_status));
         return ret;
     }
 
@@ -328,20 +350,24 @@ inline Function *
 region_data::findFunc(Address entry)
 {
     Function *result = NULL;
+    race_detector_fake_lock_acquire(race_detector_fake_lock(funcsByAddr));
     {
-      dyn_c_hash_map<Address, Function *>::const_accessor a;
+      tbb::concurrent_hash_map<Address, Function *>::const_accessor a;
       if(funcsByAddr.find(a, entry)) result = a->second;
     }
+    race_detector_fake_lock_release(race_detector_fake_lock(funcsByAddr));
     return result;
 }
 inline Block *
 region_data::findBlock(Address entry)
 {
     Block *result = NULL;
+    race_detector_fake_lock_acquire(race_detector_fake_lock(blocksByAddr));
     {
-      dyn_c_hash_map<Address, Block *>::const_accessor a;
+      tbb::concurrent_hash_map<Address, Block *>::const_accessor a;
       if(blocksByAddr.find(a, entry)) result = a->second;
     }
+    race_detector_fake_lock_release(race_detector_fake_lock(blocksByAddr));
     return result;
 }
 inline int
@@ -384,7 +410,7 @@ region_data::findBlocks(Address addr, set<Block *> & blocks)
 
 /** end region_data **/
 
-class ParseData {
+class ParseData : public boost::lockable_adapter<boost::recursive_mutex>  {
  protected:
     ParseData(Parser *p) : _parser(p) { }
     Parser * _parser;
@@ -414,8 +440,9 @@ class ParseData {
     virtual region_data * findRegion(CodeRegion *) =0;
 
     // accounting
-    virtual Function* record_func(Function *) =0;
+    virtual void record_func(Function *) =0;
     virtual Block* record_block(CodeRegion *, Block *) =0;
+    virtual void record_frame(ParseFrame *) =0;
 
     // removal
     virtual void remove_frame(ParseFrame *) =0;
@@ -457,8 +484,9 @@ class StandardParseData : public ParseData {
 
     region_data * findRegion(CodeRegion *cr);
 
-    Function* record_func(Function *f);
+    void record_func(Function *f);
     Block* record_block(CodeRegion *cr, Block *b);
+    void record_frame(ParseFrame *pf);
 
     void remove_frame(ParseFrame *);
     void remove_func(Function *);
@@ -476,9 +504,9 @@ inline region_data * StandardParseData::findRegion(CodeRegion * /* cr */)
 {
     return &_rdata;
 }
-inline Function* StandardParseData::record_func(Function *f)
+inline void StandardParseData::record_func(Function *f)
 {
-    return _rdata.record_func(f);
+    _rdata.record_func(f);
 }
 inline Block* StandardParseData::record_block(CodeRegion * /* cr */, Block *b)
 {
@@ -498,12 +526,10 @@ inline region_data::edge_data_map* StandardParseData::get_edge_data_map(CodeRegi
 }
 
 
-/* OverlappingParseData handles binary code objects like .o files 
-   where CodeRegions may overlap on the same linear address space.
-   For example, one .a file may contain multiple .o files, where each 
-   of the .o file starts from address 0. */
+/* OverlappingParseData handles binary code objects like .o files
+   where CodeRegions may overlap on the same linear address space */
 class OverlappingParseData : public ParseData {
-    typedef dyn_c_hash_map<CodeRegion*, region_data *> reg_map_t;
+    typedef dyn_hash_map<void *, region_data *> reg_map_t;
  private:
     reg_map_t rmap;
  public:
@@ -526,8 +552,9 @@ class OverlappingParseData : public ParseData {
 
     region_data * findRegion(CodeRegion *cr);
 
-    Function* record_func(Function *f);
+    void record_func(Function *f);
     Block* record_block(CodeRegion *cr, Block *b);
+    void record_frame(ParseFrame *pf);
 
     void remove_frame(ParseFrame *);
     void remove_func(Function *);

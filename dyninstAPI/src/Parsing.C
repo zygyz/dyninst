@@ -139,7 +139,6 @@ DynCFGFactory::mkfunc(
     CodeRegion * reg,
     InstructionSource * isrc)
 {
-    _mtx.lock();
     parse_func * ret;
     SymtabAPI::Symtab * st;
     SymtabAPI::Function * stf = NULL;
@@ -165,7 +164,6 @@ DynCFGFactory::mkfunc(
         if(stf && stf->getFirstSymbol()) {
             ret = new parse_func(stf, pdmod,_img,obj,reg,isrc,src);
             ret->isPLTFunction_ = true;
-            _mtx.unlock();
             return ret;
         }
     }
@@ -180,7 +178,7 @@ DynCFGFactory::mkfunc(
 
     ret = new parse_func(stf,pdmod,_img,obj,reg,isrc,src);
 
-    _mtx.unlock();
+
     return ret;
 }
 
