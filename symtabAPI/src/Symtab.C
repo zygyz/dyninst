@@ -3638,6 +3638,9 @@ std::string DyninstLineInfoWriter::getFileName(
   if (fileName == "") {
     fileName = std::string("<unknown file>");
   }
+  if (stmt.getInstrumentationFlag()) {
+    fileName += std::string("(instrumentation)");
+  }
   return fileName;
 }
 
