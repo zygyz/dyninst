@@ -1994,7 +1994,6 @@ bool Symtab::openFile(Symtab *&obj, void *mem_image, size_t size,
                       std::string name, def_t def_bin)
 {
    bool err = false;
-   cout << "symtab: openFile " << name << endl;
 #if defined(TIMED_PARSE)
    struct timeval starttime;
    gettimeofday(&starttime, NULL);
